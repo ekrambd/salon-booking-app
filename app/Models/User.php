@@ -54,4 +54,24 @@ class User extends Authenticatable
         return $this->hasOne(Staff::class);
     }
 
+    public function specialities()
+    {
+        return $this->belongsToMany(
+            Speciality::class,
+            'user_speciality',
+            'user_id',
+            'speciality_id'
+        );
+    }
+
+    public function services()
+    {
+        return $this->belongsToMany(
+            Service::class,
+            'user_service',
+            'user_id',
+            'service_id'
+        );
+    }
+
 }

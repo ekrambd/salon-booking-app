@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\RateLimiter;
 
 class AuthController extends AppBaseController
 {
-    public function register(StaffRequest $request)
+    public function userRegister(StaffRequest $request)
     {
         DB::beginTransaction();
         try {
@@ -25,26 +25,27 @@ class AuthController extends AppBaseController
                 $filePath = storeFile($request->file('image'), 'profile_images', 'profileImage_');
             }
 
-            $data = new User();
-            $data->name = $request->name;
-            $data->email = $request->email;
-            $data->phone = $request->phone;
-            $data->user_type_id = 3;
-            $data->role = 'service_provider';
-            $data->image = $filePath;
-            $data->password = $request->password;
-            $data->status = 'Active';
-            $data->save();
+            $user = new User();
+            $user->name = $request->name;
+            $user->email = $request->email;
+            $user->phone = $request->phone;
+            $user->user_type_id = 3;
+            $user->role = 'service_provider';
+            $user->image = $filePath;
+            $user->password = $request->password;
+            $user->status = 'Active';
+            $user->save();
+
 
             // Generate API token
-            $token = $data->createToken('flutter')->plainTextToken;
+            $token = $user->createToken('flutter')->plainTextToken;
 
             DB::commit();
 
             return $this->sendResponse([
                 'success' => true,
                 'token' => $token,
-                'user' => $data,
+                'user' => $user,
             ], 'User created successfully.');
 
         } catch (Exception $e) {
