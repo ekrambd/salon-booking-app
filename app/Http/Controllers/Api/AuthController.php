@@ -12,6 +12,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use Validator;
+use Auth;
 
 class AuthController extends AppBaseController
 {
@@ -142,5 +144,55 @@ class AuthController extends AppBaseController
 
             return $this->sendError('Something went wrong!!!', 500);
         }
+    }
+
+    public function changePassword(Request $request)
+    {
+        //$user = auth()->user(); // get the authenticated user
+        //return $user->password;
+        // if (!$user) {
+        //     return response()->json([
+        //         'status' => false,
+        //         'message' => 'User not found'
+        //     ], 404);
+        // }
+
+        // Validate old & new passwords
+        $validator = Validator::make($request->all(), [
+            'user_id' => 'required|integer|exists:users,id',
+            'current_password' => 'required',
+            'new_password' => 'required|min:6|same:confirm_password',
+            'confirm_password' => 'required',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Check if current password is correct
+        // if (!Hash::check($request->current_password, $user->password)) {
+        //     return response()->json([
+        //         'status' => false,
+        //         'message' => 'Current password is incorrect'
+        //     ], 400);
+        // }
+
+        $user = User::findorfail($request->user_id);
+
+        if (Auth::attempt(['phone' => $user->phone, 'password' => $request->current_password])) {
+            return "om";
+        }
+
+        // Update password
+        // $user->password = bcrypt($request->new_password);
+        // $user->save();
+
+        // return response()->json([
+        //     'status' => true,
+        //     'message' => 'Password changed successfully'
+        // ]);
     }
 }

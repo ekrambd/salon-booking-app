@@ -7,6 +7,14 @@ function user(){
     return $user;
 }
 
+function checkRole($role)
+{
+    if(user()->role !== $role){
+        return false;
+    }
+    return true;
+}
+
 if (!function_exists('storeFile')) {
     function storeFile($file, $filePath, $prefix)
     {

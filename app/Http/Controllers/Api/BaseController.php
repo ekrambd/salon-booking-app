@@ -97,12 +97,12 @@ class BaseController extends Controller
 
 	        // 'specialities.*' => 'exists:specialities,id',
 
-	        'services' => 'required|array',
+	        //'services' => 'required|array',
 
 	        //'services.*' => 'exists:services,id',
 
-	        'working_day_ids' => 'required|array',
-	        'working_day_ids.*' => 'exists:working_days,id',
+	        // 'working_day_ids' => 'required|array',
+	        // 'working_day_ids.*' => 'exists:working_days,id',
 
 	        'slot_duration' => 'required|numeric',
 
@@ -126,18 +126,21 @@ class BaseController extends Controller
 	        $count = User::count();
 	        $count+=1;
 
-	        if ($request->hasFile('image')) {
-	            $image = $request->file('image');
-	            $imageName = time().$count.'_'.$image->getClientOriginalName();
-	            $image->move(public_path('uploads/users'), $imageName);
-	        }
+	        if ($request->file('image')) {
+                $file = $request->file('image');
+                $name = time() . $count . $file->getClientOriginalName();
+                $file->move(public_path() . '/uploads/users/', $name);
+                $path = 'uploads/users/' . $name;
+            }else{
+                $path = NULL;
+            }
 
 	        $user = User::create([
 	            'name' => $request->name,
 	            'email' => $request->email,
 	            'phone' => $request->phone,
-	            'password' => Hash::make($request->password),
-	            'image' => $imageName,
+	            'password' => bcrypt($request->password),
+	            'image' => $path,
 	            'user_type_id' => 3,
 	            'role' => 'service_provider',
 	            'status' => 'Active',
@@ -159,9 +162,20 @@ class BaseController extends Controller
                 'created_by' => NULL,
             ]);
 
-            $staff->workingDays()->sync($request->working_day_ids);
+	        $services = $request->services;
 
-            foreach($request->services as $service){
+	        $services = str_replace("'", '"', $services);
+
+            $services = json_decode($services, true);
+
+            $workingDayIds = json_decode($request->working_day_ids,true);
+
+            //return $services;
+
+            $staff->workingDays()->sync($workingDayIds);
+            
+
+            foreach($services as $service){
                 StaffService::create([
                     'user_id' => $user->id,
                     'staff_id' => $staff->id,
@@ -302,7 +316,7 @@ class BaseController extends Controller
     {
     	try
         {   
-        	if(user()->role != 'service_provider'){
+        	if(!checkRole('service_provider')){
         		return response()->json(['status'=>false, 'message'=>'Invalid Role'],400);
         	}
             auth()->user()->tokens()->delete();
@@ -311,4 +325,121 @@ class BaseController extends Controller
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
         }
     }
+
+    public function barberProfile(Request $request)
+    {
+    	try
+    	{
+        	$user = user()->load(['staff.workingTimeRange','staff.workingDays','staff.services']);
+        	return response()->json(['status'=>true, 'user'=>$user]);
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function barberProfileUpdate(Request $request)
+	{
+	    $user = auth()->user(); // get the authenticated barber
+
+	    $validator = Validator::make($request->all(), [
+	        'name' => 'sometimes|required|string|max:255',
+	        'email' => 'sometimes|nullable|email|unique:users,email,' . $user->id,
+	        'phone' => 'sometimes|required|unique:users,phone,' . $user->id,
+	        'password' => 'sometimes|nullable|min:6|same:confirm_password',
+	        'confirm_password' => 'sometimes|required_with:password',
+	        'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+	        // 'services' => 'sometimes|array',
+	        // 'working_day_ids' => 'sometimes|array',
+	        // 'working_day_ids.*' => 'exists:working_days,id',
+	        'slot_duration' => 'sometimes|numeric',
+	        'working_time_range_id' => 'sometimes|integer|exists:working_time_ranges,id',
+	        'branch_id' => 'sometimes|integer|exists:branches,id',
+	        'specialty_id' => 'sometimes|integer|exists:specialties,id',
+	        'experience_id' => 'sometimes|integer|exists:experiences,id',
+	    ]);
+
+	    if ($validator->fails()) {
+	        return response()->json([
+	            'status' => false,
+	            'errors' => $validator->errors()
+	        ], 422);
+	    }
+
+	    DB::beginTransaction();
+
+	    try {
+	        // Update user image
+	        if ($request->hasFile('image')) {
+	            $image = $request->file('image');
+	            $imageName = time() . '_' . $image->getClientOriginalName();
+	            $image->move(public_path('uploads/users'), $imageName);
+	            $user->image = $imageName;
+	        }
+
+	        // Update user details
+	        if ($request->filled('name')) $user->name = $request->name;
+	        if ($request->filled('email')) $user->email = $request->email;
+	        if ($request->filled('phone')) $user->phone = $request->phone;
+	        //if ($request->filled('password')) $user->password = Hash::make($request->password);
+
+	        $user->save();
+
+	        // Update Staff details
+	        $staff = $user->staff; // assuming User hasOne Staff
+
+	        if ($staff) {
+	            //if ($request->filled('branch_id')) $staff->branch_id = $request->branch_id;
+	            //if ($request->filled('specialty_id')) $staff->specialty_id = $request->specialty_id;
+	            //if ($request->filled('experience_id')) $staff->experience_id = $request->experience_id;
+	            if ($request->filled('working_time_range_id')) $staff->working_time_range_id = $request->working_time_range_id;
+	            if ($request->filled('slot_duration')) $staff->slot_duration_minutes = $request->slot_duration;
+
+	            $staff->save();
+
+	            // Update working days
+	            if ($request->filled('working_day_ids')) {
+	            	$workingDayIds = json_decode($request->working_day_ids,true);
+	                $staff->workingDays()->sync($workingDayIds);
+	            }
+
+	            // Update services
+	            if ($request->filled('services')) {
+
+	            	$services = $request->services;
+
+			        $services = str_replace("'", '"', $services);
+
+		            $services = json_decode($services, true);
+	                // Delete old services
+	                StaffService::where('staff_id', $staff->id)->delete();
+
+	                foreach ($services as $service) {
+	                    StaffService::create([
+	                        'user_id' => $user->id,
+	                        'staff_id' => $staff->id,
+	                        'service_id' => $service['service_id'],
+	                        'price' => $service['price'],
+	                    ]);
+	                }
+	            }
+	        }
+
+	        DB::commit();
+
+	        return response()->json([
+	            'status' => true,
+	            'message' => 'Profile updated successfully',
+	            'data' => $user->fresh()->load('staff.workingDays', 'staff.services') // reload relations
+	        ]);
+
+	    } catch (Exception $e) {
+	        DB::rollback();
+	        return response()->json([
+	            'status' => false,
+	            'message' => $e->getMessage()
+	        ], 500);
+	    } 
+	}
+
+	
 }

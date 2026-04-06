@@ -19,6 +19,10 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
 
+
+//change password
+Route::post('change-password', [AuthController::class, 'changePassword']);
+
 Route::middleware(['throttle:60,1'])->group(function () {
 
 	//user register materials
@@ -35,8 +39,11 @@ Route::middleware(['throttle:60,1'])->group(function () {
 
 	Route::post('user-register', [AuthController::class, 'userRegister']);
 	Route::middleware('auth:sanctum')->group( function () {
-		Route::prefix('barber')->group(function () {
+		Route::prefix('barber')->middleware('checkRole:service_provider')->group(function () {
 		    Route::post('signout', [BaseController::class, 'barberSignout']);
+		    Route::get('profile', [BaseController::class, 'barberProfile']);
+		    Route::post('profile-update', [BaseController::class, 'barberProfileUpdate']);
 		});
+		
 	}); 
 });
