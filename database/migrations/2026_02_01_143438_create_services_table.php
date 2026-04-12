@@ -17,6 +17,7 @@ return new class extends Migration
             $table->id();
             $table->string('name')->nullable();
             $table->enum('status', ['Active', 'Inactive'])->nullable()->default('Active');
+            $table->integer('hit_count')->default('0');
             $table->timestamps();
         });
     }

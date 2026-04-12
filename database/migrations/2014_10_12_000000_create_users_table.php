@@ -24,6 +24,9 @@ return new class extends Migration
             $table->string('password');
             $table->string('image')->default('defaults/profile.png')->nullable();
             $table->enum('status', ['Active', 'Inactive'])->default('Active');
+            $table->string('home_service')->nullable();
+            $table->string('total_rating')->nullable();
+            $table->string('activation_status')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

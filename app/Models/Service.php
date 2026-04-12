@@ -12,6 +12,7 @@ class Service extends Model
     protected $fillable = [
         'name',
         'status',
+        'hit_count',
     ];
     public static function rules($id = null)
     {

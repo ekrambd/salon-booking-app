@@ -108,6 +108,8 @@ class BaseController extends Controller
 
 	        'working_time_range_id' => 'required|integer|exists:working_time_ranges,id',
 
+	        'home_service' => 'nullable|in:yes,no'
+
 	    ]);
 
 	    if ($validator->fails()) {
@@ -132,7 +134,7 @@ class BaseController extends Controller
                 $file->move(public_path() . '/uploads/users/', $name);
                 $path = 'uploads/users/' . $name;
             }else{
-                $path = NULL;
+                $path = 'defaults/profile.png';
             }
 
 	        $user = User::create([
@@ -159,6 +161,7 @@ class BaseController extends Controller
                 'experience_id' => $request->experience_id,
                 'working_time_range_id' => $request->working_time_range_id,
                 'slot_duration_minutes' => $request->slot_duration,
+                'home_service' => $request->home_service,
                 'created_by' => NULL,
             ]);
 
@@ -440,6 +443,206 @@ class BaseController extends Controller
 	        ], 500);
 	    } 
 	}
+    
 
+    public function userSignup(Request $request)
+    {
+    	try
+    	{   
+
+    	    $validator = Validator::make($request->all(), [
+
+		        'name' => 'required|string',
+		        'email' => 'nullable|email',
+		        'phone' => 'required|string',
+		        'password' => 'required|string',
+		        'confirm_password' => 'required|string|same:password',
+		        'image' => 'nullable'
+		    ]);
+
+		    if ($validator->fails()) {
+		        return response()->json([
+		            'status' => false,
+		            'errors' => $validator->errors()
+		        ], 422);
+		    }
+
+		    $countPhone = User::where('phone',$request->phone)->count();
+
+		    $countEmail = User::where('email',$request->email)->count();
+
+		    if($countPhone > 0){
+		    	return response()->json(['status'=>false, 'message'=>'The phone has already been taken', 'user'=>new \stdClass()],422);
+		    }
+
+		    if($countEmail > 0){
+		    	return response()->json(['status'=>false, 'message'=>'The email has already been taken', 'user'=>new \stdClass()],422);
+		    }
+
+    		$count = User::count();
+	        $count+=1;
+
+	        if ($request->file('image')) {
+                $file = $request->file('image');
+                $name = time() . $count . $file->getClientOriginalName();
+                $file->move(public_path() . '/uploads/users/', $name);
+                $path = 'uploads/users/' . $name;
+            }else{
+                $path = 'defaults/profile.png';
+            }
+
+            $user = new User();
+            $user->name = $request->name;
+            $user->user_type_id = 2;
+            $user->role = 'user';
+            $user->email = $request->email;
+            $user->phone = $request->phone;
+            $user->password = bcrypt($request->password);
+            $user->image = $path;
+            $user->status = 'Active';
+            $user->save();
+
+            return response()->json(['status'=>true, 'message'=>'Successfully Signup', 'user'=>$user]);
+
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function userSignin(Request $request)
+	{
+	    try
+	    {
+	        $validator = Validator::make($request->all(), [
+	            'login' => 'required|string',
+	            'password' => 'required|string',
+	        ]);
+
+	        if ($validator->fails()) {
+	            return response()->json([
+	                'status' => false, 
+	                'message' => 'Please fill all requirement fields', 
+	                'data' => $validator->errors()
+	            ], 422);  
+	        }
+
+	        $login = $request->login;
+	        $password = $request->password;
+
+	        $fieldType = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
+
+	        if (!Auth::attempt([$fieldType => $login, 'password' => $password])) {
+	            return response()->json([
+	                'status'=>false,
+	                'message'=>"Invalid Email/Phone or Password",
+	                'token'=>"",
+	                'user'=>new \stdClass()
+	            ],401);
+	        }
+
+	        $user = Auth::user();
+
+	        if($user->status == 'Inactive'){
+	            return response()->json([
+	                'status'=>false,
+	                'message'=>'Sorry you are not active user',
+	                'token'=>"",
+	                'user'=>new \stdClass()
+	            ],403);
+	        }
+
+	        $token = $user->createToken('MyApp')->plainTextToken;
+
+	        return response()->json([
+	            'status'=>true,
+	            'message'=>'Successfully Logged IN',
+	            'token'=>$token,
+	            'user'=>$user
+	        ]);
+
+	    }catch(Exception $e){
+	        return response()->json([
+	            'status'=>false,
+	            'code'=>$e->getCode(),
+	            'message'=>$e->getMessage()
+	        ],500);
+	    }
+	}
+
+    public function userSignout(Request $request)
+    {
+    	try
+        {
+            auth()->user()->tokens()->delete();
+            return response()->json(['status'=>true, 'message'=>'Successfully Logged Out']);
+        }catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function homeBarberLists(Request $request)
+    {
+    	try
+    	{
+    		// $liveBarberAvailability = User::whereHas('staff')->with('staff')->limit(10)->get();
+    		// $trustBarbers = User::orderBy('id','DESC')->limt(4)->get();
+    		// $homeSerivceBarbers = User::where('home_service','yes')->limit(10)->get();
+    		// $popularServices = Service::orderBy('hit_count',1)->limit(4)->get();
+
+    		$data = [
+			    'liveBarberAvailability' => User::whereHas('staff', function($q){
+			        $q->where('current_status','Available');
+			    })
+			    ->with('staff')
+			    ->limit(10)
+			    ->get(),
+
+			    'trustBarbers' => User::orderBy('id','DESC')
+			    ->limit(4)
+			    ->get(),
+
+			    'homeSerivceBarbers' => User::where('home_service','yes')
+			    ->limit(10)
+			    ->get(),
+
+			    'popularServices' => Service::orderBy('hit_count','DESC')
+			    ->limit(4)
+			    ->get()
+			];
+
+			return response()->json(['status'=>true, 'data'=>$data]);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function changeActivationStatus(Request $request)
+    {
+    	try
+    	{
+    		$validator = Validator::make($request->all(), [
+	            'status' => 'required|in:online,offline',
+	        ]);
+
+	        if ($validator->fails()) {
+	            return response()->json([
+	                'status' => false, 
+	                'message' => 'Please fill all requirement fields', 
+	                'data' => $validator->errors()
+	            ], 422);  
+	        }
+
+	        $user = user();
+	        $user->activation_status = $request->status;
+	        $user->save();
+
+	        return response()->json(['status'=>true, 'message'=>"Successfully {$request->status}"]);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
 	
 }

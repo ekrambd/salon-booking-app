@@ -27,6 +27,8 @@ class User extends Authenticatable
         'password',
         'image',
         'status',
+        'home_service',
+        'activation_status',
         'remember_token',
     ];
 
@@ -43,12 +45,12 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
     ];
 
-    public function setPasswordAttribute($value)
-    {
-        if ($value) {
-            $this->attributes['password'] = bcrypt($value);
-        }
-    }
+    // public function setPasswordAttribute($value)
+    // {
+    //     if ($value) {
+    //         $this->attributes['password'] = bcrypt($value);
+    //     }
+    // }
 
     public function staff()
     {
