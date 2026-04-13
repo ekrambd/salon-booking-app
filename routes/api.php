@@ -34,6 +34,8 @@ Route::middleware(['throttle:60,1'])->group(function () {
 	Route::get('working-time-ranges', [BaseController::class, 'workingTimeRanges']);
 
 	Route::post('/home-barber-lists', [BaseController::class, 'homeBarberLists']);
+	Route::get('/barber-details/{id}', [BaseController::class, 'barberDetails']);
+
 
 	//barber auth
 	Route::prefix('barber')->group(function () {
@@ -44,11 +46,16 @@ Route::middleware(['throttle:60,1'])->group(function () {
 	Route::post('user-signup', [BaseController::class, 'userSignup']);
 	Route::post('user-signin', [BaseController::class, 'userSignin']);
 	Route::middleware('auth:sanctum')->group( function () {
+		Route::post('change-password', [BaseController::class, 'changePassword']);
+		Route::post('save-booking', [BaseController::class, 'saveBooking']);
+		Route::post('user-reject-booking', [BaseController::class, 'userRejectBooking']);
 		Route::prefix('barber')->middleware('checkRole:service_provider')->group(function () {
 		    Route::post('signout', [BaseController::class, 'barberSignout']);
 		    Route::get('profile', [BaseController::class, 'barberProfile']);
 		    Route::post('profile-update', [BaseController::class, 'barberProfileUpdate']);
 		    Route::post('change-activation-status', [BaseController::class, 'changeActivationStatus']);
+		    Route::post('booking-accept', [BaseController::class, 'barberBookingAccept']);
+		    Route::post('booking-reject', [BaseController::class, 'barberBookingReject']);
 		});
 
 		Route::post('user-signout', [BaseController::class, 'userSignout']);

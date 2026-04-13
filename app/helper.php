@@ -73,3 +73,9 @@ if (!function_exists('timeFormat')) {
         return Carbon::parse($time)->format('h:i a');
     }
 }
+
+function getTimeStamP($request)
+{
+    $data = $request->booking_date.$request->booking_time;
+    return strtotime($data);
+}

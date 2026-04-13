@@ -16,6 +16,8 @@ use App\Models\User;
 use Validator;
 use Illuminate\Support\Facades\RateLimiter;
 use Auth;
+use App\Models\Booking;
+
 class BaseController extends Controller
 {
     public function specialities(Request $request)
@@ -233,84 +235,40 @@ class BaseController extends Controller
     {   
 
 
-    	$validator = Validator::make($request->all(), [
+    	try
+        {
+            $validator = Validator::make($request->all(), [
+                'login' => 'required|string',
+                'password' => 'required|string',
+            ]);
 
-	        'login' => 'required|string',
-	        'password' => 'required|string',
-
-	    ]);
-
-	    if ($validator->fails()) {
-	        return response()->json([
-	            'status' => false,
-	            'errors' => $validator->errors()
-	        ], 422);
-	    }
-
-	    DB::beginTransaction();
-
-    	try {
-            // Rate limiting to prevent brute-force attacks
-            $key = 'login_attempts:' . $request->ip();
-            if (RateLimiter::tooManyAttempts($key, 5)) {
-                //return $this->sendError('Too many login attempts. Please try again later.', 429);
+            if ($validator->fails()) {
                 return response()->json([
-	            	'status' => false,
-	            	'message' => 'Too many login attempts. Please try again later.',
-	            	'token' => "",
-	            	'user' => new \stdClass(), 
-	            ],429);
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
             }
 
-            
-            $login = $request->login;
-            // Find user by phone or email
-            $user = User::where('email', $request->login)
-                ->orWhere('phone', $request->login)
-                ->where('status', "Active")
-                ->where('role','service_provider')
-                ->first();
+            $login = $request->input('login');
+            $password = $request->input('password');
 
             $fieldType = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'phone';
 
-            // Validate user and password
-            if (Auth::attempt([$fieldType => $login, 'password' => $request->password])) {
-                RateLimiter::hit($key, 60); // Increase failed login count (lockout for 1 minute)
-                //return $this->sendError('The provided credentials are incorrect.', 401);
-
-                return response()->json([
-	            	'status' => false,
-	            	'message' => 'The provided credentials are incorrect.',
-	            	'token' => "",
-	            	'user' => new \stdClass(), 
-	            ],401);
+            $user = User::where('email',$login)->orWhere('phone',$login)->first();
+            
+            if($user && $user->status == 'Inactive'){
+                return response()->json(['status'=>false, 'message'=>'Sorry you are not active user', 'token'=>"", 'user'=>new \stdClass()],403);
             }
 
-            // Reset login attempts after successful login
-            RateLimiter::clear($key);
+            if (Auth::attempt([$fieldType => $login, 'password' => $password])) {
+                $token = $user->createToken('MyApp')->plainTextToken;
+                return response()->json(['status'=>true,'message'=>'Successfully Logged IN', 'token'=>$token, 'user'=>$user]);
+            }
 
-            // Generate API token immediately if OTP is not enabled
-            $token = $user->createToken('API Token')->plainTextToken;
+            return response()->json(['status'=>false,'message'=>"Invalid Email/Phone or Password", 'token'=>"", 'user'=>new \stdClass()],401);
 
-            DB::commit();
-
-            return response()->json([
-            	'status' => true,
-            	'message' => 'Successfully Logged IN',
-            	'token' => $token,
-            	'user' => $user, 
-            ]);
-
-        } catch (Exception $e) {
-            DB::rollBack();
-
-            // Log the error
-            \Log::error('Error in SP Login: ', [
-                'message' => $e->getMessage(),
-                'code' => $e->getCode(),
-                'line' => $e->getLine()
-            ]);
-
+        }catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
         }
     }
@@ -372,19 +330,35 @@ class BaseController extends Controller
 
 	    try {
 	        // Update user image
-	        if ($request->hasFile('image')) {
-	            $image = $request->file('image');
-	            $imageName = time() . '_' . $image->getClientOriginalName();
-	            $image->move(public_path('uploads/users'), $imageName);
-	            $user->image = $imageName;
-	        }
+	        // if ($request->hasFile('image')) {
+	        //     $image = $request->file('image');
+	        //     $imageName = time() . '_' . $image->getClientOriginalName();
+	        //     $image->move(public_path('uploads/users'), $imageName);
+	        //     $user->image = $imageName;
+	        // }
+
+	        if ($request->file('image')) {
+                $file = $request->file('image');
+                $name = time() . $user->id . $file->getClientOriginalName();
+                $file->move(public_path() . '/uploads/users/', $name);
+                if($user->image != 'defaults/profile.png')
+                {   
+                	$existingPath = file_exists(public_path($user->image));
+                	if($existingPath){
+                		unlink(public_path($user->image));
+                	}
+                } 	
+                $path = 'uploads/users/' . $name;
+            }else{
+                $path = $user->image;
+            }
 
 	        // Update user details
 	        if ($request->filled('name')) $user->name = $request->name;
 	        if ($request->filled('email')) $user->email = $request->email;
 	        if ($request->filled('phone')) $user->phone = $request->phone;
 	        //if ($request->filled('password')) $user->password = Hash::make($request->password);
-
+	        $user->image = $path;
 	        $user->save();
 
 	        // Update Staff details
@@ -432,7 +406,7 @@ class BaseController extends Controller
 	        return response()->json([
 	            'status' => true,
 	            'message' => 'Profile updated successfully',
-	            'data' => $user->fresh()->load('staff.workingDays', 'staff.services') // reload relations
+	            'user' => $user->fresh()->load('staff.workingTimeRange','staff.workingDays', 'staff.services') // reload relations
 	        ]);
 
 	    } catch (Exception $e) {
@@ -639,6 +613,203 @@ class BaseController extends Controller
 	        $user->save();
 
 	        return response()->json(['status'=>true, 'message'=>"Successfully {$request->status}"]);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function changePassword(Request $request)
+    {
+        try
+        {
+            $validator = Validator::make($request->all(), [
+                'new_password' => 'required',
+                'confirm_password' => 'required|same:new_password',
+                'current_password' => 'required',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
+            }
+
+            $user = user();
+            //$message = $user->changePassword($request,$user);
+
+            if (!Hash::check($request->current_password, $user->password)) {
+            
+               return response()->json(['status'=>false, 'message'=>"The current password is incorrect"],400);
+            } 
+
+            $user->password = Hash::make($request->new_password);
+            $user->update();
+
+            return response()->json(['status'=>true, 'message'=>"Your password has been changed"],200);
+
+        }catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function saveBooking(Request $request)
+    {
+    	try
+    	{
+    		$validator = Validator::make($request->all(), [
+                //'user_id' => 'required|integer|exists:users,id',
+                'staff_id' => 'required|integer|exists:staffs,id',
+                'booking_date' => 'required|date|date_format:Y-m-d',
+                'booking_time' => 'required|string',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
+            }
+
+            $user = user();
+
+            $booking = new Booking();
+            $booking->user_id = $user->id;
+            $booking->staff_id = $request->staff_id;
+            $booking->booking_date = $request->booking_date;
+            $booking->booking_time = $request->booking_time;
+            $booking->booking_timestamp = getTimeStamP($request);
+            $booking->timestamp = time();
+            $booking->status = 'pending';
+            $booking->save();
+
+            return response()->json(['status'=>true, 'message'=>"Successfully Booking request sent to the barber", 'data'=>$booking]);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function barberBookingAccept(Request $request)
+    {
+    	try
+    	{
+    		$validator = Validator::make($request->all(), [
+                //'user_id' => 'required|integer|exists:users,id',
+                'booking_id' => 'required|integer|exists:bookings,id',
+
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
+            }
+
+            $user = user();
+            $user->load('staff');
+
+            $booking = Booking::findorfail($request->booking_id);
+
+            if($booking->staff_id == $user->staff->id)
+            {
+            	$booking->status = 'barber_accept';
+            	$booking->update();
+            	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'message'=>'Successfully accept']);
+            }
+
+            return response()->json(['status'=>false, 'booking_id'=>0, 'message'=>'Invalid Staff'],429);  	
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function barberBookingReject(Request $request)
+    {
+    	try
+    	{
+    		$validator = Validator::make($request->all(), [
+                //'user_id' => 'required|integer|exists:users,id',
+                'booking_id' => 'required|integer|exists:bookings,id',
+
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
+            }
+
+            $user = user();
+            $user->load('staff');
+
+            $booking = Booking::findorfail($request->booking_id);
+
+            if($booking->staff_id == $user->staff->id)
+            {
+            	$booking->status = 'barber_reject';
+            	$booking->update();
+            	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'message'=>'Successfully reject']);
+            }
+
+            return response()->json(['status'=>false, 'booking_id'=>0, 'message'=>'Invalid Staff'],429);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function barberDetails($id)
+    {
+    	try
+    	{   
+    	    $user = User::findorfail($id);
+        	$user = $user->load(['staff.workingTimeRange','staff.workingDays','staff.services']);
+        	return response()->json(['status'=>true, 'user'=>$user]);
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function userRejectBooking(Request $request)
+    {
+    	try
+    	{
+    		$validator = Validator::make($request->all(), [
+                //'user_id' => 'required|integer|exists:users,id',
+                'booking_id' => 'required|integer|exists:bookings,id',
+
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
+            }
+
+            $user = user();
+            //$user->load('staff');
+
+            $booking = Booking::findorfail($request->booking_id);
+
+            if($booking->user_id == $user->id)
+            {
+            	$booking->status = 'user_reject';
+            	$booking->update();
+            	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'message'=>'Successfully reject']);
+            }
+
+            return response()->json(['status'=>false, 'booking_id'=>0, 'message'=>'Invalid User'],429);
 
     	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
