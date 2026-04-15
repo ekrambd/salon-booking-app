@@ -110,7 +110,11 @@ class BaseController extends Controller
 
 	        'working_time_range_id' => 'required|integer|exists:working_time_ranges,id',
 
-	        'home_service' => 'nullable|in:yes,no'
+	        'home_service' => 'nullable|in:yes,no',
+
+	        //'special_services' => 'required',
+
+	        'duration' => 'nullable|numeric',
 
 	    ]);
 
@@ -173,6 +177,10 @@ class BaseController extends Controller
 
             $services = json_decode($services, true);
 
+            $specialServices = $request->special_services;
+            $specialServices = str_replace("'", '"', $specialServices);
+            $specialServices = json_decode($specialServices, true);
+
             $workingDayIds = json_decode($request->working_day_ids,true);
 
             //return $services;
@@ -187,6 +195,8 @@ class BaseController extends Controller
                     'service_id' => $service['service_id'],
                     //'duration_id' => $service['duration_id'],
                     'price' => $service['price'],
+                    'is_special' => $request->has('special_services')&&in_array($service['service_id'],$specialServices)?1:0,
+                    'duration' => isset($service['duration'])?$service['duration']:NULL,
                 ]);
             }
 
@@ -387,6 +397,11 @@ class BaseController extends Controller
 			        $services = str_replace("'", '"', $services);
 
 		            $services = json_decode($services, true);
+
+		            $specialServices = $request->special_services;
+		            $specialServices = str_replace("'", '"', $specialServices);
+		            $specialServices = json_decode($specialServices, true);
+
 	                // Delete old services
 	                StaffService::where('staff_id', $staff->id)->delete();
 
@@ -396,6 +411,8 @@ class BaseController extends Controller
 	                        'staff_id' => $staff->id,
 	                        'service_id' => $service['service_id'],
 	                        'price' => $service['price'],
+	                        'is_special' => $request->has('special_services')&&in_array($service['service_id'],$specialServices)?1:0,
+                            'duration' => isset($service['duration'])?$service['duration']:NULL, 
 	                    ]);
 	                }
 	            }
@@ -810,6 +827,45 @@ class BaseController extends Controller
             }
 
             return response()->json(['status'=>false, 'booking_id'=>0, 'message'=>'Invalid User'],429);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function bookingLists(Request $request)
+    {
+    	try
+    	{   
+
+    		$user = user();
+            $user->load('staff');
+
+    		$query = Booking::query();
+    		if($request->has('from_date'))
+    		{
+    			$query->where('booking_date','>=',$request->from_date);
+    		}
+    		if($request->has('to_date'))
+    		{
+    			$query->where('booking_date', '<=', $request->to_date);
+    		}
+    		if($request->has('status'))
+    		{
+    			$query->where('status',$request->status);
+    		}
+    		if ($request->is_paginate == 1) {
+
+	            $per_page = $request->per_page ?? 10;
+
+	            $data = $query->where('staff_id',$user->staff->id)->latest()->paginate($per_page);
+
+	        } else {
+
+	            $data = $query->where('staff_id',$user->staff->id)->latest()->get();
+	        }
+
+	        return response()->json($data);
 
     	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);

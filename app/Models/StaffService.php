@@ -16,6 +16,8 @@ class StaffService extends Model
         'staff_id',
         'service_id',
         'duration_id',
+        'duration',
+        'is_special',
         'price',
     ];
     public function staff()

@@ -56,6 +56,7 @@ Route::middleware(['throttle:60,1'])->group(function () {
 		    Route::post('change-activation-status', [BaseController::class, 'changeActivationStatus']);
 		    Route::post('booking-accept', [BaseController::class, 'barberBookingAccept']);
 		    Route::post('booking-reject', [BaseController::class, 'barberBookingReject']);
+		    Route::post('booking-lists', [BaseController::class, 'bookingLists']);
 		});
 
 		Route::post('user-signout', [BaseController::class, 'userSignout']);

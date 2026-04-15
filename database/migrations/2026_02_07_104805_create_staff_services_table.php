@@ -16,7 +16,9 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('cascade');
             $table->foreignId('staff_id')->constrained('staffs')->cascadeOnDelete();
             $table->foreignId('service_id')->constrained('services')->cascadeOnDelete();
-            $table->foreignId('duration_id')->constrained('durations')->cascadeOnDelete();
+            $table->foreignId('duration_id')->constrained('durations')->cascadeOnDelete()->nullable();
+            $table->string('duration')->nullable();
+            $table->tinyInteger('is_special')->default('0');
             $table->decimal('price', 10, 2);
             $table->timestamps();
         });
