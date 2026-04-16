@@ -301,7 +301,7 @@ class BaseController extends Controller
     {
     	try
     	{
-        	$user = user()->load(['staff.workingTimeRange','staff.workingDays','staff.services']);
+        	$user = user()->load(['staff.services','staff.workingTimeRange','staff.workingDays']);
         	return response()->json(['status'=>true, 'user'=>$user]);
     	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
