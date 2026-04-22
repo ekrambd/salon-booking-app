@@ -33,8 +33,7 @@ Route::middleware(['throttle:60,1'])->group(function () {
 	Route::get('/working-days', [BaseController::class, 'workingDays']);
 	Route::get('working-time-ranges', [BaseController::class, 'workingTimeRanges']);
 
-	Route::post('/home-barber-lists', [BaseController::class, 'homeBarberLists']);
-	Route::get('/barber-details/{id}', [BaseController::class, 'barberDetails']);
+	
 
 
 	//barber auth
@@ -47,8 +46,12 @@ Route::middleware(['throttle:60,1'])->group(function () {
 	Route::post('user-signin', [BaseController::class, 'userSignin']);
 	Route::middleware('auth:sanctum')->group( function () {
 		Route::post('change-password', [BaseController::class, 'changePassword']);
+		//booking
 		Route::post('save-booking', [BaseController::class, 'saveBooking']);
 		Route::post('user-reject-booking', [BaseController::class, 'userRejectBooking']);
+		Route::post('user-cancel-booking', [BaseController::class, 'userCancelBooking']);
+		Route::post('user-reschedule-booking', [BaseController::class, 'userRescheduleBooking']);
+
 		Route::prefix('barber')->middleware('checkRole:service_provider')->group(function () {
 		    Route::post('signout', [BaseController::class, 'barberSignout']);
 		    Route::get('profile', [BaseController::class, 'barberProfile']);
@@ -57,9 +60,17 @@ Route::middleware(['throttle:60,1'])->group(function () {
 		    Route::post('booking-accept', [BaseController::class, 'barberBookingAccept']);
 		    Route::post('booking-reject', [BaseController::class, 'barberBookingReject']);
 		    Route::post('booking-lists', [BaseController::class, 'bookingLists']);
+		    Route::post('booking-cancel', [BaseController::class, 'barberBookingCancel']);
+		    Route::post('booking-status-change', [BaseController::class, 'bookingStatusChange'])
 		});
 
 		Route::post('user-signout', [BaseController::class, 'userSignout']);
-		
+		Route::get('/user-details', [BaseController::class, 'userDetails']);
+		Route::post('user-profile-update', [BaseController::class, 'userProfileUpdate']);
+		Route::post('barber-fav', [BaseController::class, 'barberFav']);
+		Route::get('/my-fav-lists', [BaseController::class, 'myFavLists']);
+		Route::post('/save-barber-rating', [BaseController::class, 'saveBarberRating']);
+		Route::post('/home-barber-lists', [BaseController::class, 'homeBarberLists']);
+	    Route::get('/barber-details/{id}', [BaseController::class, 'barberDetails']);
 	}); 
 });

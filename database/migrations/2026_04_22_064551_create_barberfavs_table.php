@@ -13,17 +13,10 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('bookings', function (Blueprint $table) {
+        Schema::create('barberfavs', function (Blueprint $table) {
             $table->id();
             $table->integer('user_id');
             $table->integer('staff_id');
-            $table->integer('staff_service_id');
-            $table->date('booking_date');
-            $table->string('booking_time');
-            $table->string('booking_timestamp');
-            $table->string('timestamp');
-            $table->enum('reschedule', ['No', 'Yes'])->default('No');
-            $table->string('status')->default('pending');
             $table->timestamps();
         });
     }
@@ -35,6 +28,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('bookings');
+        Schema::dropIfExists('barberfavs');
     }
 };

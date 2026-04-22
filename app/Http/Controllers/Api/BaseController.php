@@ -17,6 +17,8 @@ use Validator;
 use Illuminate\Support\Facades\RateLimiter;
 use Auth;
 use App\Models\Booking;
+use App\Models\Barberfav;
+use App\Models\Barberrating;
 
 class BaseController extends Controller
 {
@@ -581,6 +583,7 @@ class BaseController extends Controller
     		// $homeSerivceBarbers = User::where('home_service','yes')->limit(10)->get();
     		// $popularServices = Service::orderBy('hit_count',1)->limit(4)->get();
 
+
     		$data = [
 			    'liveBarberAvailability' => User::whereHas('staff', function($q){
 			        $q->where('current_status','Available');
@@ -589,11 +592,36 @@ class BaseController extends Controller
 			    ->limit(10)
 			    ->get(),
 
-			    'trustBarbers' => User::orderBy('id','DESC')
+			    // 'trustBarbers' => User::orderBy('id','DESC')
+			    // ->limit(4)
+			    // ->get(),
+
+			    'trustBarbers' => User::whereHas('staff')->with('staff')
 			    ->limit(4)
 			    ->get(),
 
-			    'homeSerivceBarbers' => User::where('home_service','yes')
+
+			    // 'homeSerivceBarbers' => User::where('home_service','yes')
+			    // ->limit(10)
+			    // ->get(),
+
+			    'homeSerivceBarbers' => User::whereHas('staff')
+			    ->where('home_service','yes')
+			    ->with('staff')
+			    ->limit(10)
+			    ->get(),
+
+			    // 'quick_book' => User::whereHas('staff')
+			    // ->whereHas('barberfavs')
+			    // ->with('staff')
+			    // ->where('user_id',user()->id)
+			    // ->limit(10)
+			    // ->get(),
+
+			    'quick_book' => User::whereHas('staff.barberfavs', function ($q) {
+			        $q->where('user_id', user()->id);
+			    })
+			    ->with('staff')
 			    ->limit(10)
 			    ->get(),
 
@@ -679,6 +707,7 @@ class BaseController extends Controller
     		$validator = Validator::make($request->all(), [
                 //'user_id' => 'required|integer|exists:users,id',
                 'staff_id' => 'required|integer|exists:staffs,id',
+                'staff_service_id' => 'required|integer|exists:staff_services,id',
                 'booking_date' => 'required|date|date_format:Y-m-d',
                 'booking_time' => 'required|string',
             ]);
@@ -693,8 +722,16 @@ class BaseController extends Controller
 
             $user = user();
 
+            $staff = Staff::findorfail($request->staff_id);
+
+            if($staff->status != 'Available')
+            {
+            	return response()->json(['status'=>false, 'message'=>"The barber is not Available Now!", 'data'=>new \stdClass()],429); 
+            }	
+
             $booking = new Booking();
             $booking->user_id = $user->id;
+            $booking->staff_service_id = $request->staff_service_id;
             $booking->staff_id = $request->staff_id;
             $booking->booking_date = $request->booking_date;
             $booking->booking_time = $request->booking_time;
@@ -858,16 +895,360 @@ class BaseController extends Controller
 
 	            $per_page = $request->per_page ?? 10;
 
-	            $data = $query->where('staff_id',$user->staff->id)->latest()->paginate($per_page);
+	            $data = $query->with('user')->where('staff_id',$user->staff->id)->latest()->paginate($per_page);
 
 	        } else {
 
-	            $data = $query->where('staff_id',$user->staff->id)->latest()->get();
+	            $data = $query->with('user')->where('staff_id',$user->staff->id)->latest()->get();
 	        }
 
 	        return response()->json($data);
 
     	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function barberBookingCancel(Request $request)
+    {
+    	try
+    	{
+    		$validator = Validator::make($request->all(), [
+                //'user_id' => 'required|integer|exists:users,id',
+                'booking_id' => 'required|integer|exists:bookings,id',
+
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
+            }
+
+            $user = user();
+            $user->load('staff');
+
+            $booking = Booking::findorfail($request->booking_id);
+
+            if($booking->staff_id == $user->staff->id)
+            {
+            	$booking->status = 'barber_cancel';
+            	$booking->update();
+            	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'message'=>'Successfully cancel']);
+            }
+
+            return response()->json(['status'=>false, 'booking_id'=>0, 'message'=>'Invalid Staff'],429);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function userDetails()
+    {
+    	try
+    	{
+    		$user = user();
+    		return response()->json(['status'=>true, 'user'=>$user]);
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function userProfileUpdate(Request $request)
+    {
+    	try
+    	{
+    		$validator = Validator::make($request->all(), [
+                //'user_id' => 'required|integer|exists:users,id',
+                'name' => 'required|string',
+                'email' => 'nullable|email',
+                'phone' => 'nullable|string',
+                'image' => 'nullable'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
+            }
+
+            $user = user();
+
+            //return $user;
+
+            $countEmail = User::where('email',$request->email)->where('id','!=',$user->id)->count();
+
+            $countPhone = User::where('phone',$request->phone)->where('id','!=',$user->id)->count();
+
+            if($countEmail > 0){
+            	return response()->json(['status'=>false, 'message'=>'Already the email has been taken', 'user'=> new \stdClass()],422);
+            }
+
+            if($countPhone > 0){
+            	return response()->json(['status'=>false, 'message'=>'Already the phone has been taken', 'user'=> new \stdClass()],422);
+            }
+
+            if ($request->file('image')) {
+                $file = $request->file('image');
+                $name = time() . $user->id . $file->getClientOriginalName();
+                $file->move(public_path() . '/uploads/users/', $name);
+                $path = 'uploads/users/' . $name;
+            }else{
+                $path = $user->image;
+            }
+
+            $user->name = $request->name;
+            $user->email = $request->email;
+            $user->phone = $request->phone;
+            $user->image = $path;
+            $user->update();
+
+            return response()->json(['status'=>true, 'message'=>'Successfully updated', 'user'=>$user]);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function barberFav(Request $request)
+    {
+    	try
+    	{
+    		$validator = Validator::make($request->all(), [
+                //'user_id' => 'required|integer|exists:users,id',
+                'staff_id' => 'required|integer|exists:staffs,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
+            }
+
+            $count = Barberfav::where('user_id',user()->id)->where('staff_id',$request->staff_id)->count();
+            if($count > 0){
+            	return response()->json(['status'=>false, 'message'=>'Already listed as Fav'],429); 
+            }
+
+            $fav = new Barberfav();
+            $fav->user_id = user()->id;
+            $fav->staff_id = $request->staff_id;
+            $fav->save();
+
+            return response()->json(['status'=>true, 'message'=>'Successfully added']);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function myFavLists()
+    {
+    	try
+    	{
+    		$data = Barberfav::with(['staff.user','staff.services'])->where('user_id',user()->id)->get();
+    		return response()->json(['status'=>count($data) > 0, 'data'=>$data]);
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function saveBarberRating(Request $request)
+    {
+    	try
+    	{
+    		$validator = Validator::make($request->all(), [
+                //'user_id' => 'required|integer|exists:users,id',
+                'staff_id' => 'required|integer|exists:staffs,id',
+                'rate' => 'required|integer|max:5',
+                'remarks' => 'nullable',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
+            }
+
+            $count = Barberrating::where('user_id',user()->id)->where('staff_id',$request->staff_id)->count();
+            if($count > 0){
+            	return response()->json(['status'=>false, 'message'=>'Already rating provided for the barber'],429); 
+            }
+
+            $rate = new Barberrating();
+            $rate->user_id = user()->id;
+            $rate->staff_id = $request->staff_id;
+            $rate->rate = $request->rate;
+            $rate->remarks = $request->remarks;
+            $rate->save();
+
+            return response()->json(['status'=>true, 'message'=>'Successfully added']);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function userCancelBooking(Request $request)
+    {
+    	try
+    	{
+    		$validator = Validator::make($request->all(), [
+                //'user_id' => 'required|integer|exists:users,id',
+                'booking_id' => 'required|integer|exists:bookings,id',
+
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
+            }
+
+            $user = user();
+            //$user->load('staff');
+
+            $booking = Booking::findorfail($request->booking_id);
+
+            if($booking->user_id == $user->id)
+            {
+            	$booking->status = 'user_cancel';
+            	$booking->update();
+            	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'message'=>'Successfully cancel']);
+            }
+
+            return response()->json(['status'=>false, 'booking_id'=>0, 'message'=>'Invalid User'],429);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function userRescheduleBooking(Request $request)
+    {
+    	try
+    	{
+    		$validator = Validator::make($request->all(), [
+                //'user_id' => 'required|integer|exists:users,id',
+                'booking_id' => 'required|integer|exists:bookings,id',
+                'booking_date' => 'required|date|date_format:Y-m-d',
+                'booking_time' => 'required|string',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
+            }
+
+            $booking = Booking::findorfail($request->booking_id);
+            $booking->booking_date = $request->booking_date;
+            $booking->booking_time = $request->booking_time;
+            $booking->timestamp = time();
+            $booking->reschedule = 'Yes';
+            $booking->status = 're-scheduled';
+            $booking->save();
+
+            return response()->json(['status'=>true, 'message'=>"Successfully Reschedule the booking", 'data'=>$booking]);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function bookingStatusChange(Request $request)
+    {  
+    	DB::beginTransaction();
+    	try
+    	{
+    		$validator = Validator::make($request->all(), [
+                //'user_id' => 'required|integer|exists:users,id',
+                'booking_id' => 'required|integer|exists:bookings,id',
+                'status' => 'required|in:service_start,paid,completed',
+
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
+            }
+
+            $booking = Booking::findorfail($request->booking_id);
+
+            if($booking->status == 'paid' && $request->status == 'paid')
+            {
+            	return response()->json(['status'=>false, 'message'=>"Already the order's status is {$request->status}"],429);
+            }
+
+            if($booking->status == 'completed' && $request->status == 'completed')
+            {
+            	return response()->json(['status'=>false, 'message'=>"Already the order's status is {$request->status}"],429);
+            }
+
+            if($booking->status == 'paid' && $request->status == 'service_start')
+            {
+            	return response()->json(['status'=>false, 'message'=>"Already the order's status is {$request->status}"],429);
+            }
+
+            if($booking->status == 'completed' && $request->status == 'service_start')
+            {
+            	return response()->json(['status'=>false, 'message'=>"Already the order's status is {$request->status}"],429);
+            }
+            
+
+            // if($request->status == 'completed' && $request->status == 'completed')
+            // {
+            // 	return response()->json(['status'=>false, 'message'=>"All the order's status is {$request->status}"],429);
+            // }
+
+
+            $booking->status = $request->status;
+            $booking->update();
+
+            $service = StaffService::where('id',$booking->staff_service_id)->first();
+            $staff = Staff::where('id',$booking->staff_id)->first();
+
+            if($request->status == 'service_start')
+            {
+            	$staff->current_status = 'Busy';
+            	$staff->update();
+            }	
+
+            if($request->status == 'paid')
+            {
+            	
+            	$staff->balance+=$service->price;
+            	$staff->update();
+            }
+
+            if($request->status == 'completed')
+            {
+            	$staff->current_status = 'Available';
+            	$staff->update();
+            }  
+
+            DB::commit();
+
+            return response()->json(['status'=>true, 'message'=>"Successfully {$request->status}"]);
+
+    	}catch(Exception $e){
+    		DB::rollback();
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
         }
     }

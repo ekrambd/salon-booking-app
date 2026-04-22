@@ -140,4 +140,19 @@ class Staff extends Model
             StaffService::class
         );
     }
+
+    public function barberfavs()
+    {
+        return $this->hasMany(Barberfav::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function barberratings()
+    {
+        return $this->hasOne(Barberrating::class);
+    }
 }

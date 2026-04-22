@@ -5,9 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Booking extends Model
+class Barberrating extends Model
 {
     use HasFactory;
+
+    public function staff()
+    {
+    	return $this->belongsTo(Staff::class);
+    }
 
     public function user()
     {

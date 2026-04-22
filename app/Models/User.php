@@ -77,4 +77,19 @@ class User extends Authenticatable
         );
     }
 
+    public function bookings()
+    {
+        return $this->hasMany(Booking::class);
+    }
+
+    public function barberfavs()
+    {
+        return $this->hasMany(Barberfav::class);
+    }
+
+    public function barberratings()
+    {
+        return $this->hasOne(Barberrating::class);
+    }
+
 }
