@@ -725,8 +725,11 @@ class BaseController extends Controller
             $user = user();
 
             $staff = Staff::findorfail($request->staff_id);
+            $service = StaffService::where('staff_id',$staff->id)->where('service_id',$request->staff_service_id)->first();
 
-            if($staff->status != 'Available')
+            //return $staff;
+
+            if($staff->current_status != 'Available')
             {
             	return response()->json(['status'=>false, 'message'=>"The barber is not Available Now!", 'data'=>new \stdClass()],429); 
             }	
@@ -734,6 +737,7 @@ class BaseController extends Controller
             $booking = new Booking();
             $booking->user_id = $user->id;
             $booking->staff_service_id = $request->staff_service_id;
+            $booking->amount = $service->price;
             $booking->staff_id = $request->staff_id;
             $booking->booking_date = $request->booking_date;
             $booking->booking_time = $request->booking_time;
@@ -1241,10 +1245,11 @@ class BaseController extends Controller
             	$earning = new Earning();
             	$earning->staff_id = $staff->id;
             	$earning->booking_id = $booking->id;
+            	$earning->amount = $service->price;
             	$earning->date = date('Y-m-d');
             	$earning->time = date('h:i:s a');
             	$earning->timestamp = time();
-            	$earning->save();
+            	$earning->save(); 
 
             }
 
@@ -1262,7 +1267,7 @@ class BaseController extends Controller
     		DB::rollback();
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
         }
-    }
+    } 
 
     public function saveWithdrawRequest(Request $request)
     {
@@ -1286,6 +1291,40 @@ class BaseController extends Controller
 
     		$withdraw = new Withdraw();
     		//$withdraw =
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function earingWithdrawSummary(Request $request)
+    {
+    	try
+    	{   
+    		$user = user();
+    		$user->load('staff');
+    		$todayEarning = Earning::where('staff_id',$user->staff->id)->where('date',date('Y-m-d'))->sum('amount');
+    		$todayAppointments = Earning::where('staff_id',$user->staff->id)->where('date',date('Y-m-d'))->count();
+    		$pendingRequests = Booking::where('staff_id',$user->staff->id)->where('status','pending')->count();
+    		$completedRequests = Booking::where('staff_id',$user->staff->id)->where('status','completed')->count();
+    		$totalEarning = Earning::where('staff_id',$user->staff->id)->sum('amount');
+    		$thisMonthEarning = Earning::where('staff_id',$user->staff->id)->whereMonth('date',date('F'))->sum('amount');
+    		$pendingAmount = Booking::where('bookings.staff_id',$user->staff->id)->where('bookings.status','pending')->sum('amount');
+    		$balance = Staff::where('id',$user->staff->id)->select('balance')->first();
+
+    		return response()->json(['status'=>true, 'today_earning'=>$todayEarning, 'today_appointment'=>$todayAppointments, 'pending_requests'=>$pendingRequests, 'completed_requests'=>$completedRequests, 'total_earning'=>$totalEarning, 'this_month_earning'=>$thisMonthEarning, 'pending_amount'=>$pendingAmount, 'balance'=>$balance]);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function earningHistories(Request $request)
+    {
+    	try
+    	{   
+    		$user = user();
+    		$user->load('staff');
+    		// $query = Earning
     	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
         }

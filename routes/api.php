@@ -63,6 +63,8 @@ Route::middleware(['throttle:60,1'])->group(function () {
 		    Route::post('booking-cancel', [BaseController::class, 'barberBookingCancel']);
 		    Route::post('booking-status-change', [BaseController::class, 'bookingStatusChange']);
 		    Route::post('save-withdraw-request', [BaseController::class, 'saveWithdrawRequest']);
+		    Route::post('earning-withdraw-summary', [BaseController::class, 'earingWithdrawSummary']);
+		    Route::post('earning-histories', [BaseController::class, 'earningHistories']);
 		});
 
 		Route::post('user-signout', [BaseController::class, 'userSignout']);

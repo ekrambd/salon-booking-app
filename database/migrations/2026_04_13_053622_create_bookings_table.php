@@ -18,6 +18,7 @@ return new class extends Migration
             $table->integer('user_id');
             $table->integer('staff_id');
             $table->integer('staff_service_id');
+            $table->string('amount');
             $table->date('booking_date');
             $table->string('booking_time');
             $table->string('booking_timestamp');

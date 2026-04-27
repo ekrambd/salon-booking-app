@@ -1,6 +1,7 @@
 <?php
 
 use Carbon\Carbon;
+use App\Models\Withdrawsetting;
 
 function user(){
     $user = auth()->user();
@@ -78,4 +79,10 @@ function getTimeStamP($request)
 {
     $data = $request->booking_date.$request->booking_time;
     return strtotime($data);
+}
+
+function withdrawSetting()
+{
+    $data = Withdrawsetting::find(1);
+    return $data;
 }
