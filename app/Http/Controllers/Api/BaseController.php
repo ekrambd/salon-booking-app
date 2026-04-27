@@ -19,6 +19,8 @@ use Auth;
 use App\Models\Booking;
 use App\Models\Barberfav;
 use App\Models\Barberrating;
+use App\Models\Earning;
+use App\Models\Withdraw;
 
 class BaseController extends Controller
 {
@@ -826,12 +828,12 @@ class BaseController extends Controller
     	try
     	{   
     	    $user = User::findorfail($id);
-        	$user = $user->load(['staff.workingTimeRange','staff.workingDays','staff.services']);
+        	$user = $user->load(['staff.workingTimeRange','staff.workingDays','staff.services.service']);
         	return response()->json(['status'=>true, 'user'=>$user]);
     	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
         }
-    }
+    } 
 
     public function userRejectBooking(Request $request)
     {
@@ -1235,6 +1237,15 @@ class BaseController extends Controller
             	
             	$staff->balance+=$service->price;
             	$staff->update();
+
+            	$earning = new Earning();
+            	$earning->staff_id = $staff->id;
+            	$earning->booking_id = $booking->id;
+            	$earning->date = date('Y-m-d');
+            	$earning->time = date('h:i:s a');
+            	$earning->timestamp = time();
+            	$earning->save();
+
             }
 
             if($request->status == 'completed')
@@ -1249,6 +1260,33 @@ class BaseController extends Controller
 
     	}catch(Exception $e){
     		DB::rollback();
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function saveWithdrawRequest(Request $request)
+    {
+    	try
+    	{   
+
+    		$validator = Validator::make($request->all(), [
+                //'user_id' => 'required|integer|exists:users,id',
+                'booking_id' => 'required|integer|exists:bookings,id',
+                'status' => 'required|in:service_start,paid,completed',
+
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
+            }
+
+    		$withdraw = new Withdraw();
+    		//$withdraw =
+    	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
         }
     }

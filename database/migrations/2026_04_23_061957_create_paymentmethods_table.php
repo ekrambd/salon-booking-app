@@ -13,14 +13,10 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('earnings', function (Blueprint $table) {
+        Schema::create('paymentmethods', function (Blueprint $table) {
             $table->id();
-            $table->integer('staff_id');
-            $table->integer('booking_id');
-            $table->string('amount');
-            $table->date('date');
-            $table->string('time');
-            $table->string('timestamp');
+            $table->string('name');
+            $table->enum('status', ['Active', 'Inactive']);
             $table->timestamps();
         });
     }
@@ -32,6 +28,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('earnings');
+        Schema::dropIfExists('paymentmethods');
     }
 };
