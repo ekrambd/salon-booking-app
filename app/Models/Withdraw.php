@@ -8,4 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 class Withdraw extends Model
 {
     use HasFactory;
+
+    public function paymentmethod()
+    {
+    	return $this->belongsTo(Paymentmethod::class);
+    }
+
+    public function staff()
+    {
+    	return $this->belongsTo(Staff::class);
+    }
 }

@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\IndexController;
 use App\Http\Controllers\AccessController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PaymentmethodController;
+use App\Http\Controllers\WithdrawController;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -82,6 +85,13 @@ Route::group(['middleware' => ['prevent-back-history', 'admin_auth']], function 
 
     Route::post('staffs/{staff}/update-services', [StaffController::class,'updateServices'])
         ->name('staffs.update.services');
+
+    Route::resource('paymentmethods', PaymentmethodController::class);
+
+    Route::post('paymentmethod-status-update', [PaymentmethodController::class, 'paymentMethodStatusUpdate']);
+
+    Route::get('/withdraw-lists', [WithdrawController::class, 'withdrawLists']);
+    Route::post('/withdraw-approve', [WithdrawController::class, 'withdrawApprove']);
 });
 
 

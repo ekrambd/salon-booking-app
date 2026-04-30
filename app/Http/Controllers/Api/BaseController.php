@@ -21,6 +21,7 @@ use App\Models\Barberfav;
 use App\Models\Barberrating;
 use App\Models\Earning;
 use App\Models\Withdraw;
+use App\Models\Paymentmethod;
 
 class BaseController extends Controller
 {
@@ -1269,6 +1270,17 @@ class BaseController extends Controller
         }
     } 
 
+    public function paymentMethods()
+    {
+    	try
+    	{
+    		$data = Paymentmethod::where('status','Active')->get();
+    		return response()->json(['status'=>count($data) > 0, 'data'=>$data]);
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
     public function saveWithdrawRequest(Request $request)
     {
     	try
@@ -1276,9 +1288,9 @@ class BaseController extends Controller
 
     		$validator = Validator::make($request->all(), [
                 //'user_id' => 'required|integer|exists:users,id',
-                'booking_id' => 'required|integer|exists:bookings,id',
-                'status' => 'required|in:service_start,paid,completed',
-
+                'paymentmethod_id' => 'required|integer|exists:paymentmethods,id',
+                'amount' => 'required|numeric',
+                
             ]);
 
             if ($validator->fails()) {
@@ -1289,7 +1301,20 @@ class BaseController extends Controller
                 ], 422);  
             }
 
+            $user = user();
+            $user->load('staff');
+
     		$withdraw = new Withdraw();
+    		$withdraw->staff_id = $user->staff->id;
+    		$withdraw->paymentmethod_id = $request->paymentmethod_id;
+    		$withdraw->amount = $request->amount;
+    		$withdraw->date = date('Y-m-d');
+    		$withdraw->time = date('h:i:s a');
+    		$withdraw->timestamp = time();
+    		$withdraw->status = 'pending';
+    		$withraw->save();
+
+    		return response()->json(['status'=>true, 'message'=>'Successfully a withdraw request has sent', 'data'=>$withdraw]);
     		//$withdraw =
     	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
@@ -1325,9 +1350,103 @@ class BaseController extends Controller
     		$user = user();
     		$user->load('staff');
     		// $query = Earning
+    		$query = Earning::query();
+    		if($request->has('from_date'))
+    	    {
+    	    	$query->where('date','>=',$request->from_date);
+    	    }
+    	    if($request->has('to_date'))
+    	    {
+    	    	$query->where('date','<=',$request->to_date);
+    	    }
+
+    	    if ($request->is_paginate == 1) {
+
+	            $per_page = $request->per_page ?? 10;
+
+	            $data = $query->where('staff_id',$user->staff->id)->latest()->paginate($per_page);
+
+	        } else {
+
+	            $data = $query->where('staff_id',$user->staff->id)->latest()->get();
+	        }
+
+    	    return response()->json($data);
+
     	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
         }
     }
+
+    public function withdrawHistories(Request $request)
+    {
+    	try
+    	{   
+    		$user = user();
+    		$user->load('staff');
+    		// $query = Withdraw
+    		$query = Withdraw::query();
+    		if($request->has('from_date'))
+    	    {
+    	    	$query->where('date','>=',$request->from_date);
+    	    }
+    	    if($request->has('to_date'))
+    	    {
+    	    	$query->where('date','<=',$request->to_date);
+    	    }
+
+    	    if ($request->is_paginate == 1) {
+
+	            $per_page = $request->per_page ?? 10;
+
+	            $data = $query->where('staff_id',$user->staff->id)->latest()->paginate($per_page);
+
+	        } else {
+
+	            $data = $query->where('staff_id',$user->staff->id)->latest()->get();
+	        }
+
+    	    return response()->json($data);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function upcomingAppointments(Request $request)
+    {
+    	try
+    	{   
+    		$user = user();
+    		$user->load('staff');
+    		$data = Booking::where('date','>=',date('Y-m-d'))->where('status','pending')->where('staff_id',$user->staff->id)->take(5)->latest()->get();
+    		return response()->json(['status'=>count($data) > 0, 'data'=>$data]);
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function barberRatingLists(Request $request)
+    {
+    	try
+    	{   
+    		$user = user();
+    		$user->load('staff');
+    		$query = Barberrating::query();
+    		if ($request->is_paginate == 1) {
+
+	            $per_page = $request->per_page ?? 10;
+
+	            $data = $query->where('staff_id',$user->staff->id)->latest()->paginate($per_page);
+
+	        } else {
+
+	            $data = $query->where('staff_id',$user->staff->id)->latest()->get();
+	        }
+	        return response()->json($data);
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    } 
 	
 }

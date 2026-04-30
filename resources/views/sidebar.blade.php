@@ -244,6 +244,40 @@
                     </ul>
                 </li>
 
+                <li class="nav-item {{ Request::is('paymentmethods*') ? 'menu-open' : '' }}">
+                    <a href="{{ route('paymentmethods.index') }}" class="nav-link">
+                        <i class="nav-icon fas fa-th"></i>
+                        <p>
+                            Payment Methods
+                            <i class="fas fa-angle-left right"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{{ route('paymentmethods.create') }}" class="nav-link {{ request()->routeIs('paymentmethods.create') ? 'active_nav_menu' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Add Payment Method</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('paymentmethods.index') }}" class="nav-link {{ request()->routeIs('paymentmethods.index') ? 'active_nav_menu' : '' }}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>All Payment Method</p>
+                            </a>
+                        </li>
+
+                    </ul>
+                </li>
+
+                <li class="nav-item {{ Request::is('withdraw-lists') ? 'menu-open' : '' }}">
+                    <a href="{{ url('withdraw-lists') }}" class="nav-link">
+                        <i class="nav-icon fas fa-cog"></i>
+                        <p>
+                            Withdraw Lists
+                        </p>
+                    </a>
+                </li>
+
                 <li class="nav-item {{ Request::is('password-change') ? 'menu-open' : '' }}">
                     <a href="{{ route('password-change') }}" class="nav-link">
                         <i class="nav-icon fas fa-cog"></i>

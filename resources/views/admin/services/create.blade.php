@@ -57,6 +57,23 @@
                             </div>
                         </div>
 
+                        <div class="col-md-12">
+                            <div class="form-group">
+                                <label for="image">Image <span class="required">*</span></label>
+                                <input
+                                    name="image"
+                                    type="file"
+                                    id="image"
+                                    accept="image/*"
+                                    class="dropify"
+                                    data-height="150"
+                                />
+                                @error('image')
+                                <span class="alert alert-danger">{{ $message }}</span>
+                                @enderror
+                            </div>
+                        </div>
+
                         <div class="form-group w-100 px-2">
                             <button type="submit" class="btn btn-primary">Submit</button>
                         </div>

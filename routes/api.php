@@ -33,7 +33,8 @@ Route::middleware(['throttle:60,1'])->group(function () {
 	Route::get('/working-days', [BaseController::class, 'workingDays']);
 	Route::get('working-time-ranges', [BaseController::class, 'workingTimeRanges']);
 
-	
+	Route::get('/payment-methods', [BaseController::class, 'paymentMethods']);
+
 
 
 	//barber auth
@@ -65,6 +66,9 @@ Route::middleware(['throttle:60,1'])->group(function () {
 		    Route::post('save-withdraw-request', [BaseController::class, 'saveWithdrawRequest']);
 		    Route::post('earning-withdraw-summary', [BaseController::class, 'earingWithdrawSummary']);
 		    Route::post('earning-histories', [BaseController::class, 'earningHistories']);
+		    Route::post('withdraw-histories', [BaseController::class, 'withdrawHistories']);
+		    Route::post('upcoming-appointments', [BaseController::class, 'upcomingAppointments']);
+		    Route::post('rating-lists', [BaseController::class, 'barberRatingLists']);
 		});
 
 		Route::post('user-signout', [BaseController::class, 'userSignout']);
@@ -75,5 +79,6 @@ Route::middleware(['throttle:60,1'])->group(function () {
 		Route::post('/save-barber-rating', [BaseController::class, 'saveBarberRating']);
 		Route::post('/home-barber-lists', [BaseController::class, 'homeBarberLists']);
 	    Route::get('/barber-details/{id}', [BaseController::class, 'barberDetails']);
+
 	}); 
 });

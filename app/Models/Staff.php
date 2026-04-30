@@ -155,4 +155,9 @@ class Staff extends Model
     {
         return $this->hasOne(Barberrating::class);
     }
+
+    public function withdraws()
+    {
+        return $this->hasMany(Withdraw::class);
+    }
 }

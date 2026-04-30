@@ -8,4 +8,11 @@ use Illuminate\Database\Eloquent\Model;
 class Paymentmethod extends Model
 {
     use HasFactory;
+
+    protected $fillable = ['name', 'status'];
+
+    public function withdraws()
+    {
+    	return $this->hasMany(Withdraw::class);
+    }
 }

@@ -87,10 +87,23 @@ class ServiceController extends Controller
     {
         DB::beginTransaction();
         try
-        {
+        {   
+            $count = Service::count();
+            $count+=1;
+
+            if ($request->file('image')) {
+                $file = $request->file('image');
+                $name = time() . $count . $file->getClientOriginalName();
+                $file->move(public_path() . '/uploads/services/', $name);
+                $path = 'uploads/services/' . $name;
+            }else{
+                $path = NULL;
+            }
+
             $task = new Service();
             $task->name = $request->name;
             $task->status = $request->status;
+            $task->image = $path;
             $task->save();
 
             $notification=array(
@@ -128,9 +141,23 @@ class ServiceController extends Controller
     public function update(ServiceRequest $request, Service $service)
     {
         try
-        {
+        {   
+
+            if ($request->file('image')) {
+                $file = $request->file('image');
+                $name = time() . auth()->user()->id . $file->getClientOriginalName();
+                $file->move(public_path() . '/uploads/services/', $name);
+                if($service->image != NULL){
+                    unlink(public_path($service->image));
+                }
+                $path = 'uploads/services/' . $name;
+            }else{
+                $path = $service->image;
+            }
+
             $service->name = $request->name;
             $service->status = $request->status;
+            $service->image = $path;
             $service->save();
 
             $notification=array(
@@ -158,7 +185,10 @@ class ServiceController extends Controller
     public function destroy(Service $service)
     {
         try
-        {
+        {   
+            if($service->image != NULL){
+                unlink(public_path($service->image));
+            }
             $service->delete();
             return response()->json([
                 'status'=>true,

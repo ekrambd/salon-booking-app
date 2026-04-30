@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('paymentmethods', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+            $table->string('name')->unqiue();
             $table->enum('status', ['Active', 'Inactive']);
             $table->timestamps();
         });
