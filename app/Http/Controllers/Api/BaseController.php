@@ -578,7 +578,7 @@ class BaseController extends Controller
     }
 
     public function homeBarberLists(Request $request)
-    {
+    {   
     	try
     	{
     		// $liveBarberAvailability = User::whereHas('staff')->with('staff')->limit(10)->get();
@@ -593,7 +593,7 @@ class BaseController extends Controller
 			    })
 			    ->with('staff')
 			    ->limit(10)
-			    ->get(),
+			    ->get(), 
 
 			    // 'trustBarbers' => User::orderBy('id','DESC')
 			    // ->limit(4)

@@ -11,6 +11,8 @@ class Staff extends Model
 
     protected $table = 'staffs';
 
+    protected $appends = ['special_service','rating'];
+
     protected $fillable = [
         'user_id',
         'branch_id',
@@ -141,6 +143,8 @@ class Staff extends Model
         );
     }
 
+    
+
     public function barberfavs()
     {
         return $this->hasMany(Barberfav::class);
@@ -159,5 +163,16 @@ class Staff extends Model
     public function withdraws()
     {
         return $this->hasMany(Withdraw::class);
+    }
+
+    public function getSpecialServiceAttribute()
+    {
+        $id = $this->id;
+        return getSpecialService($id); 
+    }
+
+    public function getRatingAttribute()
+    {
+        return "5";
     }
 }

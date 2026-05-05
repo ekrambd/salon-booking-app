@@ -2,6 +2,8 @@
 
 use Carbon\Carbon;
 use App\Models\Withdrawsetting;
+use App\Models\StaffService;
+
 
 function user(){
     $user = auth()->user();
@@ -14,6 +16,17 @@ function checkRole($role)
         return false;
     }
     return true;
+}
+
+function getSpecialService($id)
+{
+    $data = StaffService::join('services', 'staff_services.service_id', '=', 'services.id')
+    ->select('services.id', 'services.name as service_name')
+    ->where('staff_services.staff_id', $id)
+    ->orderByDesc('staff_services.is_special')
+    ->first();
+
+    return $data;
 }
 
 if (!function_exists('storeFile')) {
