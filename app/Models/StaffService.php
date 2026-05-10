@@ -32,4 +32,9 @@ class StaffService extends Model
     {
         return $this->belongsTo(Duration::class);
     }
+
+    public function booking()
+    {
+        return $this->hasOne(Booking::class, 'staff_service_id');
+    }
 }

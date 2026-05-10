@@ -902,11 +902,11 @@ class BaseController extends Controller
 
 	            $per_page = $request->per_page ?? 10;
 
-	            $data = $query->with('user')->where('staff_id',$user->staff->id)->latest()->paginate($per_page);
+	            $data = $query->with('user','staffService.service')->where('staff_id',$user->staff->id)->latest()->paginate($per_page);
 
 	        } else {
 
-	            $data = $query->with('user')->where('staff_id',$user->staff->id)->latest()->get();
+	            $data = $query->with('user','staffService.service')->where('staff_id',$user->staff->id)->latest()->get();
 	        }
 
 	        return response()->json($data);
@@ -1312,7 +1312,7 @@ class BaseController extends Controller
     		$withdraw->time = date('h:i:s a');
     		$withdraw->timestamp = time();
     		$withdraw->status = 'pending';
-    		$withraw->save();
+    		$withdraw->save();
 
     		return response()->json(['status'=>true, 'message'=>'Successfully a withdraw request has sent', 'data'=>$withdraw]);
     		//$withdraw =
@@ -1419,7 +1419,7 @@ class BaseController extends Controller
     	{   
     		$user = user();
     		$user->load('staff');
-    		$data = Booking::where('date','>=',date('Y-m-d'))->where('status','pending')->where('staff_id',$user->staff->id)->take(5)->latest()->get();
+    		$data = Booking::where('booking_date','>=',date('Y-m-d'))->where('status','pending')->where('staff_id',$user->staff->id)->take(5)->latest()->get();
     		return response()->json(['status'=>count($data) > 0, 'data'=>$data]);
     	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
