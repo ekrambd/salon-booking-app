@@ -60,7 +60,7 @@ Route::middleware(['throttle:60,1'])->group(function () {
 		    Route::post('change-activation-status', [BaseController::class, 'changeActivationStatus']);
 		    Route::post('booking-accept', [BaseController::class, 'barberBookingAccept']);
 		    Route::post('booking-reject', [BaseController::class, 'barberBookingReject']);
-		    Route::post('booking-lists', [BaseController::class, 'bookingLists']);
+		    
 		    Route::post('booking-cancel', [BaseController::class, 'barberBookingCancel']);
 		    Route::post('booking-status-change', [BaseController::class, 'bookingStatusChange']);
 		    Route::post('save-withdraw-request', [BaseController::class, 'saveWithdrawRequest']);
@@ -70,6 +70,8 @@ Route::middleware(['throttle:60,1'])->group(function () {
 		    Route::post('upcoming-appointments', [BaseController::class, 'upcomingAppointments']);
 		    Route::post('rating-lists', [BaseController::class, 'barberRatingLists']);
 		});
+
+		Route::post('/barber/booking-lists', [BaseController::class, 'bookingLists']);
 
 		Route::post('user-signout', [BaseController::class, 'userSignout']);
 		Route::get('/user-details', [BaseController::class, 'userDetails']);

@@ -728,6 +728,11 @@ class BaseController extends Controller
             $staff = Staff::findorfail($request->staff_id);
             $service = StaffService::where('staff_id',$staff->id)->where('service_id',$request->staff_service_id)->first();
 
+            if(!$service)
+            {
+            	return response()->json(['status'=>false, 'message'=>"No Service Found", 'data'=>new \stdClass()],404);
+            }	
+
             //return $staff;
 
             if($staff->current_status != 'Available')
@@ -898,15 +903,20 @@ class BaseController extends Controller
     		{
     			$query->where('status',$request->status);
     		}
+
+    		if($user->staff){
+    			$query->where('staff_id',$user->staff->id);
+    		}
+
     		if ($request->is_paginate == 1) {
 
 	            $per_page = $request->per_page ?? 10;
 
-	            $data = $query->with('user','staffService.service')->where('staff_id',$user->staff->id)->latest()->paginate($per_page);
+	            $data = $query->with('user','staffService.service')->latest()->paginate($per_page);
 
 	        } else {
 
-	            $data = $query->with('user','staffService.service')->where('staff_id',$user->staff->id)->latest()->get();
+	            $data = $query->with('user','staffService.service')->latest()->get();
 	        }
 
 	        return response()->json($data);
