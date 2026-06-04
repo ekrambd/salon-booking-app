@@ -22,6 +22,7 @@ use App\Models\Barberrating;
 use App\Models\Earning;
 use App\Models\Withdraw;
 use App\Models\Paymentmethod;
+use App\Models\Appnotification;
 
 class BaseController extends Controller
 {
@@ -1456,6 +1457,46 @@ class BaseController extends Controller
 	        return response()->json($data);
     	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function barberHome(Request $request)
+    {
+    	try
+    	{
+    		$user = user();
+    		$user->load('staff');
+    		//return $user;
+    		$todayEarning = Earning::where('staff_id',$user->staff->id)->where('date',date('Y-m-d'))->sum('amount');
+    		$todayAppointments = Booking::where('staff_id',$user->staff->id)->where('booking_date',date('Y-m-d'))->count();
+    		$pendingRequests = Booking::where('staff_id',$user->staff->id)->where('status','pending')->count();
+    		$completedRequests = Booking::where('staff_id',$user->staff->id)->where('status','completed')->count();
+    		$totalEarning = Earning::where('staff_id',$user->staff->id)->sum('amount');
+    		$thisMonthEarning = Earning::where('staff_id',$user->staff->id)->whereMonth('date',date('F'))->sum('amount');
+    		$pendingAmount = Booking::where('bookings.staff_id',$user->staff->id)->where('bookings.status','pending')->sum('amount');
+    		$balance = Staff::where('id',$user->staff->id)->select('balance')->first();
+
+    		$upcomingAppointments = Booking::with('user','staffService.service')->where('booking_date','>=',date('Y-m-d'))->where('status','barber_accept')->where('staff_id',$user->staff->id)->take(3)->latest()->get(); 
+
+    		$newRequests = Booking::with('user','staffService.service')->where('status','pending')->where('staff_id',$user->staff->id)->take(3)->latest()->get();
+
+
+    		return response()->json(['status'=>true, 'today_earning'=>$todayEarning, 'today_appointment'=>$todayAppointments, 'pending_requests'=>$pendingRequests, 'completed_requests'=>$completedRequests, 'total_earning'=>$totalEarning, 'this_month_earning'=>$thisMonthEarning, 'pending_amount'=>$pendingAmount, 'balance'=>$balance, 'upcoming_appointments'=>$upcomingAppointments, 'newRequests'=>$newRequests]);
+
+    	}catch(Exception $e){
+            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+        }
+    }
+
+    public function appNotifications(Request $request)
+    {
+        try
+        {
+            $data = Appnotification::latest()->get();
+            return response()->json(['status'=>count($data) > 0, 'data'=>$data]);
+        }catch (Exception $e) {
+
+            return $this->sendError('Something went wrong!!!', 500);
         }
     } 
 	

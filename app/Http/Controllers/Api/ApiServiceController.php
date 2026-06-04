@@ -19,6 +19,7 @@ use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\Appnotification;
 
 class ApiServiceController extends AppBaseController
 {
@@ -195,4 +196,6 @@ class ApiServiceController extends AppBaseController
             return $this->sendError('Something went wrong!!!', 500);
         }
     }
+
+    
 }

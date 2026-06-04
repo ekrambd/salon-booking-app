@@ -82,5 +82,9 @@ Route::middleware(['throttle:60,1'])->group(function () {
 		Route::post('/home-barber-lists', [BaseController::class, 'homeBarberLists']);
 	    Route::get('/barber-details/{id}', [BaseController::class, 'barberDetails']);
 
+	    Route::post('/barber/home', [BaseController::class, 'barberHome']); 
+
+	    Route::get('/app-notifications', [BaseController::class, 'appNotifications']);
+
 	}); 
 });
