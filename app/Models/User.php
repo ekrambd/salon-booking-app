@@ -29,6 +29,7 @@ class User extends Authenticatable
         'status',
         'home_service',
         'activation_status',
+        'device_token',
         'remember_token',
     ];
 

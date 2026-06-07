@@ -27,6 +27,7 @@ return new class extends Migration
             $table->string('home_service')->nullable();
             $table->string('total_rating')->nullable();
             $table->string('activation_status')->nullable();
+            $table->text('device_token')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

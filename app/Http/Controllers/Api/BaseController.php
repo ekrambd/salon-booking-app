@@ -256,6 +256,7 @@ class BaseController extends Controller
             $validator = Validator::make($request->all(), [
                 'login' => 'required|string',
                 'password' => 'required|string',
+                'device_token' => 'required|string',
             ]);
 
             if ($validator->fails()) {
@@ -279,6 +280,8 @@ class BaseController extends Controller
 
             if (Auth::attempt([$fieldType => $login, 'password' => $password])) {
                 $token = $user->createToken('MyApp')->plainTextToken;
+                $user->device_token = $request->device_token;
+                $user->update();
                 return response()->json(['status'=>true,'message'=>'Successfully Logged IN', 'token'=>$token, 'user'=>$user]);
             }
 
@@ -514,6 +517,7 @@ class BaseController extends Controller
 	        $validator = Validator::make($request->all(), [
 	            'login' => 'required|string',
 	            'password' => 'required|string',
+	            'device_token' => 'required|string'
 	        ]);
 
 	        if ($validator->fails()) {
@@ -550,6 +554,9 @@ class BaseController extends Controller
 	        }
 
 	        $token = $user->createToken('MyApp')->plainTextToken;
+
+	        $user->device_token = $request->device_token;
+	        $user->save();
 
 	        return response()->json([
 	            'status'=>true,
