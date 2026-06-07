@@ -787,10 +787,10 @@ class BaseController extends Controller
             {
             	$booking->status = 'barber_accept';
             	$booking->update();
-            	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'message'=>'Successfully accept']);
+            	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'booking_status'=>'barber_accept', 'message'=>'Successfully accept']);
             }
 
-            return response()->json(['status'=>false, 'booking_id'=>0, 'message'=>'Invalid Staff'],429);  	
+            return response()->json(['status'=>false, 'booking_id'=>0, 'booking_status'=>'', 'message'=>'Invalid Staff'],429);  	
 
     	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
@@ -824,10 +824,10 @@ class BaseController extends Controller
             {
             	$booking->status = 'barber_reject';
             	$booking->update();
-            	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'message'=>'Successfully reject']);
+            	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'booking_status'=>'barber_reject', 'message'=>'Successfully reject']);
             }
 
-            return response()->json(['status'=>false, 'booking_id'=>0, 'message'=>'Invalid Staff'],429);
+            return response()->json(['status'=>false, 'booking_id'=>0, 'booking_status'=>'', 'message'=>'Invalid Staff'],429);
 
     	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
@@ -914,13 +914,13 @@ class BaseController extends Controller
 	            $per_page = $request->per_page ?? 10;
 
 	            $data = $query->with('user','staffService.service')->latest()->paginate($per_page);
+	            return response()->json($data);
 
 	        } else {
 
 	            $data = $query->with('user','staffService.service')->latest()->get();
+	            return response()->json(['status'=>count($data) > 0, 'data'=>$data]);
 	        }
-
-	        return response()->json($data);
 
     	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
@@ -954,10 +954,10 @@ class BaseController extends Controller
             {
             	$booking->status = 'barber_cancel';
             	$booking->update();
-            	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'message'=>'Successfully cancel']);
+            	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'booking_status'=>"barber_cancel", 'message'=>'Successfully cancel']);
             }
 
-            return response()->json(['status'=>false, 'booking_id'=>0, 'message'=>'Invalid Staff'],429);
+            return response()->json(['status'=>false, 'booking_id'=>0, 'booking_status'=>"", 'message'=>'Invalid Staff'],429);
 
     	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
@@ -1273,7 +1273,7 @@ class BaseController extends Controller
 
             DB::commit();
 
-            return response()->json(['status'=>true, 'message'=>"Successfully {$request->status}"]);
+            return response()->json(['status'=>true, 'booking_status'=>$request->status, 'message'=>"Successfully {$request->status}"]);
 
     	}catch(Exception $e){
     		DB::rollback();
