@@ -1505,6 +1505,35 @@ class BaseController extends Controller
 
             return $this->sendError('Something went wrong!!!', 500);
         }
+    }
+
+    public function updateDeviceToken(Request $request)
+    {
+    	try
+    	{
+    		$validator = Validator::make($request->all(), [
+                'device_token' => 'required|string',
+                
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false, 
+                    'message' => 'Please fill all requirement fields', 
+                    'data' => $validator->errors()
+                ], 422);  
+            }
+
+            $user = user();
+            $user->device_token = $request->device_token;
+            $user->update();
+
+            return response()->json(['status'=>true, 'message'=>'Successfully updated']);
+
+    	}catch (\Exception $e) {
+
+            return $this->sendError('Something went wrong!!!', 500);
+        }
     } 
 	
 }

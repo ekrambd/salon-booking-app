@@ -86,5 +86,7 @@ Route::middleware(['throttle:60,1'])->group(function () {
 
 	    Route::get('/app-notifications', [BaseController::class, 'appNotifications']);
 
+	    Route::post('update-device-token', [BaseController::class, 'updateDeviceToken']);
+
 	}); 
 });
