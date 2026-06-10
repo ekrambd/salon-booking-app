@@ -47,6 +47,7 @@ Route::middleware(['throttle:60,1'])->group(function () {
 	Route::post('user-signin', [BaseController::class, 'userSignin']);
 	Route::middleware('auth:sanctum')->group( function () {
 		Route::post('change-password', [BaseController::class, 'changePassword']);
+		Route::post('search-barber', [BaseController::class, 'searchBarber']);
 		//booking
 		Route::post('save-booking', [BaseController::class, 'saveBooking']);
 		Route::post('user-reject-booking', [BaseController::class, 'userRejectBooking']);

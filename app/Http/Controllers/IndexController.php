@@ -12,7 +12,11 @@ class IndexController extends Controller
     }
 
     public function loginPage()
-    {
+    {   
+        if(config('database.connections.mysql.database') == '')
+        {
+            return redirect('/install');
+        }    
         if (auth()->check()) {
             return redirect()->route('dashboard');
         }

@@ -175,4 +175,9 @@ class Staff extends Model
     {
         return "5";
     }
+
+    public function bookings()
+    {
+        return $this->hasMany(Booking::class);
+    }
 }

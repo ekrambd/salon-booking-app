@@ -23,6 +23,7 @@ use App\Models\Earning;
 use App\Models\Withdraw;
 use App\Models\Paymentmethod;
 use App\Models\Appnotification;
+use Firebase\JWT\JWT;
 
 class BaseController extends Controller
 {
@@ -50,6 +51,24 @@ class BaseController extends Controller
 	        return response()->json($data);
 
     	}catch(Exception $e){
+    		return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
+    	}
+    }
+
+    public function searchBarber(Request $request)
+    {
+    	try
+    	{
+    		$query = User::query();
+    		if ($request->has('search') && !empty($request->search)) {
+	            $search = $request->search;
+	            $query->where('name', 'LIKE', "%{$search}%")->orWhere('phone', 'LIKE', "%{$search}%")->orWhere('email', 'LIKE', "%{$search}%");
+	        }
+	        $data = $query->with('staff')->where('role','service_provider')->latest()->take(20)->get();
+
+	        return response()->json(['status'=>count($data) > 0, 'data'=>$data]);
+
+    	}catch(\Exception $e){
     		return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
     	}
     }
@@ -586,67 +605,74 @@ class BaseController extends Controller
     }
 
     public function homeBarberLists(Request $request)
-    {   
-    	try
-    	{
-    		// $liveBarberAvailability = User::whereHas('staff')->with('staff')->limit(10)->get();
-    		// $trustBarbers = User::orderBy('id','DESC')->limt(4)->get();
-    		// $homeSerivceBarbers = User::where('home_service','yes')->limit(10)->get();
-    		// $popularServices = Service::orderBy('hit_count',1)->limit(4)->get();
+	{
+	    try {
 
+	        $search = $request->search;
 
-    		$data = [
-			    'liveBarberAvailability' => User::whereHas('staff', function($q){
-			        $q->where('current_status','Available');
-			    })
-			    ->with('staff')
-			    ->limit(10)
-			    ->get(), 
+	        // reusable search condition (IMPORTANT: grouped OR logic fix)
+	        $applySearch = function ($q) use ($search) {
+	            if (!empty($search)) {
+	                $q->where(function ($sub) use ($search) {
+	                    $sub->where('name', 'LIKE', "%{$search}%")
+	                        ->orWhere('phone', 'LIKE', "%{$search}%")
+	                        ->orWhere('email', 'LIKE', "%{$search}%");
+	                });
+	            }
+	        };
 
-			    // 'trustBarbers' => User::orderBy('id','DESC')
-			    // ->limit(4)
-			    // ->get(),
+	        $data = [
 
-			    'trustBarbers' => User::whereHas('staff')->with('staff')
-			    ->limit(4)
-			    ->get(),
+	            'liveBarberAvailability' => User::whereHas('staff', function ($q) use ($applySearch) {
+	                $q->where('current_status', 'Available');
+	                $applySearch($q);
+	            })
+	            ->with('staff')
+	            ->limit(10)
+	            ->get(),
 
+	            'trustBarbers' => User::whereHas('staff', function ($q) use ($applySearch) {
+	                $applySearch($q);
+	            })
+	            ->with('staff')
+	            ->limit(4)
+	            ->get(),
 
-			    // 'homeSerivceBarbers' => User::where('home_service','yes')
-			    // ->limit(10)
-			    // ->get(),
+	            'homeSerivceBarbers' => User::whereHas('staff')
+	                ->where('home_service', 'yes')
+	                ->where(function ($q) use ($applySearch) {
+	                    $applySearch($q);
+	                })
+	                ->with('staff')
+	                ->limit(10)
+	                ->get(),
 
-			    'homeSerivceBarbers' => User::whereHas('staff')
-			    ->where('home_service','yes')
-			    ->with('staff')
-			    ->limit(10)
-			    ->get(),
+	            'quick_book' => User::whereHas('staff.barberfavs', function ($q) use ($applySearch) {
+	                $q->where('user_id', user()->id);
+	                $applySearch($q);
+	            })
+	            ->with('staff')
+	            ->limit(10)
+	            ->get(),
 
-			    // 'quick_book' => User::whereHas('staff')
-			    // ->whereHas('barberfavs')
-			    // ->with('staff')
-			    // ->where('user_id',user()->id)
-			    // ->limit(10)
-			    // ->get(),
+	            'popularServices' => Service::orderBy('hit_count', 'DESC')
+	                ->limit(4)
+	                ->get()
+	        ];
 
-			    'quick_book' => User::whereHas('staff.barberfavs', function ($q) {
-			        $q->where('user_id', user()->id);
-			    })
-			    ->with('staff')
-			    ->limit(10)
-			    ->get(),
+	        return response()->json([
+	            'status' => true,
+	            'data' => $data
+	        ]);
 
-			    'popularServices' => Service::orderBy('hit_count','DESC')
-			    ->limit(4)
-			    ->get()
-			];
-
-			return response()->json(['status'=>true, 'data'=>$data]);
-
-    	}catch(Exception $e){
-            return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
-        }
-    }
+	    } catch (\Exception $e) {
+	        return response()->json([
+	            'status' => false,
+	            'code' => $e->getCode(),
+	            'message' => $e->getMessage()
+	        ], 500);
+	    }
+	}
 
     public function changeActivationStatus(Request $request)
     {
@@ -760,6 +786,9 @@ class BaseController extends Controller
             $booking->status = 'pending';
             $booking->save();
 
+
+            sendPush("An Order for you {$staff->user->name}","{$user->name} wants to take a service from your",$staff->user->device_token);
+
             return response()->json(['status'=>true, 'message'=>"Successfully Booking request sent to the barber", 'data'=>$booking]);
 
     	}catch(Exception $e){
@@ -788,12 +817,13 @@ class BaseController extends Controller
             $user = user();
             $user->load('staff');
 
-            $booking = Booking::findorfail($request->booking_id);
+            $booking = Booking::findorfail($request->booking_id); 
 
             if($booking->staff_id == $user->staff->id)
             {
             	$booking->status = 'barber_accept';
             	$booking->update();
+            	sendPush('A barber accept your order',"{$user->name} accept your order please attend on time & enjoy",$booking->user->device_token);
             	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'booking_status'=>'barber_accept', 'message'=>'Successfully accept']);
             }
 
@@ -831,6 +861,7 @@ class BaseController extends Controller
             {
             	$booking->status = 'barber_reject';
             	$booking->update();
+            	sendPush('A barber reject your order',"{$user->name} reject your order Please try again!",$booking->user->device_token);
             	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'booking_status'=>'barber_reject', 'message'=>'Successfully reject']);
             }
 
@@ -876,10 +907,13 @@ class BaseController extends Controller
 
             $booking = Booking::findorfail($request->booking_id);
 
+            $deviceToken = $booking->staff->user->device_token;
+
             if($booking->user_id == $user->id)
             {
             	$booking->status = 'user_reject';
             	$booking->update();
+            	sendPush('The customer reject your order',"Unfortunately the customer reject the order",$deviceToken);
             	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'message'=>'Successfully reject']);
             }
 
@@ -961,6 +995,7 @@ class BaseController extends Controller
             {
             	$booking->status = 'barber_cancel';
             	$booking->update();
+            	sendPush('A barber cancel your order',"{$user->name} cancel your order Please try again!",$booking->user->device_token);
             	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'booking_status'=>"barber_cancel", 'message'=>'Successfully cancel']);
             }
 
@@ -1150,6 +1185,7 @@ class BaseController extends Controller
             {
             	$booking->status = 'user_cancel';
             	$booking->update();
+            	sendPush("An Order has been cancel {$booking->staff->user->name}","The booking cancel by the user",$booking->staff->user->device_token);
             	return response()->json(['status'=>true, 'booking_id'=>intval($booking->id), 'message'=>'Successfully cancel']);
             }
 
@@ -1306,7 +1342,7 @@ class BaseController extends Controller
 
     		$validator = Validator::make($request->all(), [
                 //'user_id' => 'required|integer|exists:users,id',
-                'paymentmethod_id' => 'required|integer|exists:paymentmethods,id',
+                //'paymentmethod_id' => 'required|integer|exists:paymentmethods,id',
                 'amount' => 'required|numeric',
                 
             ]);
@@ -1321,6 +1357,11 @@ class BaseController extends Controller
 
             $user = user();
             $user->load('staff');
+
+            if($user->staff->balance < $request->amount)
+            {
+            	return response()->json(['status'=>false, 'message'=>'Balance limit exceeded', 'data'=>new \stdClass()],403);
+            } 	
 
     		$withdraw = new Withdraw();
     		$withdraw->staff_id = $user->staff->id;
@@ -1418,13 +1459,15 @@ class BaseController extends Controller
 	            $per_page = $request->per_page ?? 10;
 
 	            $data = $query->where('staff_id',$user->staff->id)->latest()->paginate($per_page);
+	            return response()->json($data);
 
 	        } else {
 
 	            $data = $query->where('staff_id',$user->staff->id)->latest()->get();
+	            return response()->json(['status'=>count($data) > 0, 'data'=>$data]);
 	        }
 
-    	    return response()->json($data);
+    	    
 
     	}catch(Exception $e){
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
@@ -1455,11 +1498,11 @@ class BaseController extends Controller
 
 	            $per_page = $request->per_page ?? 10;
 
-	            $data = $query->where('staff_id',$user->staff->id)->latest()->paginate($per_page);
+	            $data = $query->with('user')->where('staff_id',$user->staff->id)->latest()->paginate($per_page);
 
 	        } else {
 
-	            $data = $query->where('staff_id',$user->staff->id)->latest()->get();
+	            $data = $query->with('user')->where('staff_id',$user->staff->id)->latest()->get();
 	        }
 	        return response()->json($data);
     	}catch(Exception $e){

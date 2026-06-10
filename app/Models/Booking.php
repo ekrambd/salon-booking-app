@@ -18,4 +18,9 @@ class Booking extends Model
     {
         return $this->belongsTo(StaffService::class, 'staff_service_id');
     }
+
+    public function staff()
+    {
+    	return $this->belongsTo(Staff::class);
+    }
 }

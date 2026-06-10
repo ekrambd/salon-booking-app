@@ -244,25 +244,25 @@
                     </ul>
                 </li>
 
-                <li class="nav-item {{ Request::is('paymentmethods*') ? 'menu-open' : '' }}">
+                <li class="nav-item">
                     <a href="{{ route('paymentmethods.index') }}" class="nav-link">
-                        <i class="nav-icon fas fa-th"></i>
+                        <i class="nav-icon fas fa-list"></i>
                         <p>
-                            Payment Methods
+                            Notifications
                             <i class="fas fa-angle-left right"></i>
                         </p>
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="{{ route('paymentmethods.create') }}" class="nav-link {{ request()->routeIs('paymentmethods.create') ? 'active_nav_menu' : '' }}">
+                            <a href="{{ url('/add-notification') }}" class="nav-link">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>Add Payment Method</p>
+                                <p>Add Notifications</p>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('paymentmethods.index') }}" class="nav-link {{ request()->routeIs('paymentmethods.index') ? 'active_nav_menu' : '' }}">
+                            <a href="{{ url('/all-notifications') }}" class="nav-link">
                                 <i class="far fa-circle nav-icon"></i>
-                                <p>All Payment Method</p>
+                                <p>All Notifications</p>
                             </a>
                         </li>
 
@@ -287,7 +287,7 @@
                     </a>
                 </li>
 
-                <li class="nav-header">EXAMPLES</li>
+
             </ul>
         </nav>
         <!-- /.sidebar-menu -->

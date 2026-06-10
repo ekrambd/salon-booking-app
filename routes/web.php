@@ -15,6 +15,8 @@ use App\Http\Controllers\AccessController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PaymentmethodController;
 use App\Http\Controllers\WithdrawController;
+use App\Http\Controllers\InstallController;
+use App\Http\Controllers\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -92,6 +94,12 @@ Route::group(['middleware' => ['prevent-back-history', 'admin_auth']], function 
 
     Route::get('/withdraw-lists', [WithdrawController::class, 'withdrawLists']);
     Route::post('/withdraw-approve', [WithdrawController::class, 'withdrawApprove']);
+
+    //notifications
+    Route::get('/add-notification', [NotificationController::class, 'addNotification']);
+    Route::get('/all-notifications', [NotificationController::class, 'allNotification']);
+    Route::post('save-notification', [NotificationController::class, 'saveNotification']);
+    Route::get('/delete-notification/{id}', [NotificationController::class, 'deleteNotification']);
 });
 
 
@@ -118,3 +126,9 @@ Route::get('/db-seed', function(){
     ]);
     return response()->json(['message' => 'Database seeded successfully.']);
 });
+
+
+Route::get('/install', [InstallController::class, 'install']);
+Route::post('store-info', [InstallController::class, 'storeInfo']);
+Route::get('/admin-register', [InstallController::class, 'register']);
+Route::post('register-admin', [InstallController::class, 'registerAdmin']);

@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use DataTables;
 use App\Models\Withdraw;
+use DB;
+use App\Models\Staff;
+use App\Models\User;
 
 class WithdrawController extends Controller
 {
@@ -24,12 +27,12 @@ class WithdrawController extends Controller
 
 	            ->addColumn('staff_name', function($row){
 
-	                return $row->staff->name;
+	                return $row->staff->user->name;
 	            })
 
 	            ->addColumn('staff_phone', function($row){
 
-	                return $row->staff->phone;
+	                return $row->staff->user->phone;
 	            })
 
 	            ->addColumn('amount', fn($row) => $row->amount)
@@ -64,10 +67,13 @@ class WithdrawController extends Controller
     }
 
     public function withdrawApprove(Request $request)
-    {
+    {   
+    	DB::beginTransaction();
     	try
     	{
     		$withdraw = Withdraw::find($request->id);
+
+    		$staff = Staff::findorfail($withdraw->staff_id);
 
 		    if(!$withdraw){
 		        return response()->json([
@@ -75,6 +81,14 @@ class WithdrawController extends Controller
 		            'message' => 'Withdraw not found'
 		        ]);
 		    }
+
+		    // if($staff->balance < $withdraw->amount)
+		    // {
+		    // 	return response()->json([
+		    //         'status' => false,
+		    //         'message' => 'Invalid Withdraw amount'
+		    //     ]);
+		    // } 	
 
 		    if($withdraw->status == 'approved'){
 		        return response()->json([
@@ -94,11 +108,18 @@ class WithdrawController extends Controller
 		    $withdraw->status = 'approved';
 		    $withdraw->save();
 
+		   
+		    $staff->balance+=$withdraw->amount;
+		    $staff->update();
+
+		    DB::commit();
+
 		    return response()->json([
 		        'status' => true,
 		        'message' => 'Withdraw approved successfully'
 		    ]);
     	}catch(Exception $e){
+    		DB::rollback();
             return response()->json(['status'=>false, 'code'=>$e->getCode(), 'message'=>$e->getMessage()],500);
         }
     }

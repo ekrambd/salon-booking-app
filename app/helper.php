@@ -3,7 +3,7 @@
 use Carbon\Carbon;
 use App\Models\Withdrawsetting;
 use App\Models\StaffService;
-
+use Firebase\JWT\JWT;
 
 function user(){
     $user = auth()->user();
@@ -98,4 +98,86 @@ function withdrawSetting()
 {
     $data = Withdrawsetting::find(1);
     return $data;
+}
+
+function sendPush($title,$body,$device_token)
+{
+    $fcmData = [
+        'success' => "true",
+        'message' => $body,
+    ];
+
+    $serviceAccount = json_decode(
+        file_get_contents(public_path('fcm/barber-app-f388d-firebase-adminsdk-fbsvc-ef480a7ffc.json')),
+        true
+    );
+
+    $now = time();
+    $jwt = JWT::encode([
+        'iss' => $serviceAccount['client_email'],
+        'scope' => 'https://www.googleapis.com/auth/firebase.messaging',
+        'aud' => 'https://oauth2.googleapis.com/token',
+        'iat' => $now,
+        'exp' => $now + 3600
+    ], $serviceAccount['private_key'], 'RS256');
+
+    // Get Access Token
+    $ch = curl_init('https://oauth2.googleapis.com/token');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
+        CURLOPT_POSTFIELDS => http_build_query([
+            'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            'assertion' => $jwt
+        ])
+    ]);
+
+    $tokenResponse = curl_exec($ch);
+    curl_close($ch);
+
+    $tokenData = json_decode($tokenResponse, true);
+    if (!isset($tokenData['access_token'])) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Failed to get FCM access token'
+        ], 500);
+    }
+
+    $accessToken = $tokenData['access_token'];
+
+    // FCM Payload
+    $payload = [
+        'message' => [
+            'token' => $device_token,
+            'notification' => [
+                'title' => $title,
+                'body' => $body
+            ],
+            'data' => $fcmData
+        ]
+    ];
+
+    $fcmUrl = 'https://fcm.googleapis.com/v1/projects/' .
+        $serviceAccount['project_id'] . '/messages:send';
+
+    $ch = curl_init($fcmUrl);
+    curl_setopt_array($ch, [
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $accessToken,
+            'Content-Type: application/json'
+        ],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload)
+    ]);
+
+    curl_exec($ch);
+    curl_close($ch);
+}
+
+function timezones()
+{
+    $timezones = \DateTimeZone::listIdentifiers();
+    return $timezones;
 }
